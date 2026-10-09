@@ -1,0 +1,12 @@
+{
+  "name": "jev-mute",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chrome extension: plain-language tweet filtering with TypeSafe's Jev",
+  "scripts": {
+    "test": "node --test test/",
+    "e2e": "node scripts/e2e.js",
+    "zip": "rm -f jev-mute.zip && zip -r jev-mute.zip manifest.json src icons"
+  }
+}

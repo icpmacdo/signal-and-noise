@@ -1,0 +1,5 @@
+node_modules/
+*.zip
+.e2e-profile/
+shots/
+.DS_Store

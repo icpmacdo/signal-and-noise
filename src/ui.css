@@ -1,0 +1,46 @@
+:root {
+  --bg: #ffffff;
+  --fg: #0f1419;
+  --muted: #536471;
+  --line: #e5e8eb;
+  --accent: #5b5bd6;
+  --accent-fg: #ffffff;
+  --error: #c4352b;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #15181c; --fg: #e7e9ea; --muted: #8b98a5; --line: #2f3336; --accent: #8b8bf0; --accent-fg: #0f1419; --error: #f2786d; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.page { max-width: 620px; margin: 0 auto; padding: 32px 16px 48px; }
+h1 { font-size: 24px; margin: 0 0 6px; }
+h2 { font-size: 15px; margin: 0 0 4px; }
+.lede { color: var(--muted); margin: 0 0 24px; }
+section { margin: 0 0 24px; }
+.hint { color: var(--muted); font-size: 13px; margin: 2px 0 8px; }
+.error { color: var(--error); font-size: 13px; }
+a { color: var(--accent); }
+textarea, input[type=text], input[type=password] {
+  width: 100%; font: inherit; color: var(--fg); background: transparent;
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+}
+textarea { resize: vertical; }
+textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.row { display: flex; gap: 10px; align-items: center; }
+.row.spread { justify-content: space-between; }
+.slider { display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: 13px; }
+.slider input { flex: 1; accent-color: var(--accent); }
+button {
+  font: inherit; font-weight: 600; border-radius: 999px; padding: 7px 16px; cursor: pointer;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--accent-fg);
+}
+button.secondary { background: transparent; color: var(--fg); border-color: var(--line); white-space: nowrap; }
+button.wide { width: 100%; }
+.toggle { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.toggle input { accent-color: var(--accent); }
+
+.popup { width: 300px; padding: 14px; }
+.popup .stat { font-size: 15px; margin: 6px 0; }
+.popup .stat span:first-child { font-size: 22px; font-weight: 700; }
+.popup ul { margin: 4px 0 12px; padding-left: 18px; color: var(--muted); font-size: 13px; }

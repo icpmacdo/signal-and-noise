@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Jev Mute</title>
+<link rel="stylesheet" href="ui.css">
+</head>
+<body class="popup">
+  <div class="row spread">
+    <strong>Jev Mute</strong>
+    <label class="toggle"><input id="enabled" type="checkbox"> On</label>
+  </div>
+  <p id="status" class="hint"></p>
+  <div id="today">
+    <div class="stat"><span id="hidden">0</span> hidden today <span class="hint">of <span id="judged">0</span> checked</span></div>
+    <ul id="reasons"></ul>
+  </div>
+  <p id="error" class="error" hidden></p>
+  <button id="settings" type="button" class="secondary wide">Edit what to mute</button>
+<script type="module" src="popup.js"></script>
+</body>
+</html>

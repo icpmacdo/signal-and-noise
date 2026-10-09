@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Jev Mute settings</title>
+<link rel="stylesheet" href="ui.css">
+</head>
+<body>
+<main class="page">
+  <h1>Jev Mute</h1>
+  <p class="lede">Describe the posts you don't want on your X timeline. Jev reads each tweet before it scrolls into view and folds away the ones that match.</p>
+
+  <section>
+    <h2>Don't show me</h2>
+    <p class="hint">One per line, in plain words. Be specific: "posts dunking on other people" works better than "negativity".</p>
+    <textarea id="mutes" rows="7" spellcheck="true"></textarea>
+  </section>
+
+  <section>
+    <h2>How strict</h2>
+    <div class="slider">
+      <span>Only clear matches</span>
+      <input id="strictness" type="range" min="0.05" max="0.9" step="0.05">
+      <span>Anything close</span>
+    </div>
+    <p class="hint" id="strictness-note"></p>
+  </section>
+
+  <section>
+    <h2>Always show these accounts</h2>
+    <p class="hint">Handles separated by spaces or commas. Their posts are never sent to Jev.</p>
+    <input id="allow" type="text" placeholder="@friend @favourite_writer">
+  </section>
+
+  <section>
+    <h2>TypeSafe API key</h2>
+    <p class="hint">Jev runs on your own key from <a href="https://typesafe.ai" target="_blank" rel="noopener">typesafe.ai</a>. It stays in this browser and is only sent to api.typesafe.ai.</p>
+    <div class="row">
+      <input id="key" type="password" autocomplete="off" placeholder="ts-…">
+      <button id="test" type="button" class="secondary">Test key</button>
+    </div>
+    <p class="hint" id="test-result" role="status"></p>
+  </section>
+
+  <section class="row">
+    <label class="toggle"><input id="enabled" type="checkbox"> Filtering on</label>
+    <button id="save" type="button">Save</button>
+    <span id="saved" class="hint" role="status"></span>
+  </section>
+</main>
+<script type="module" src="options.js"></script>
+</body>
+</html>
