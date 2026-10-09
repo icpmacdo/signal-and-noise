@@ -35,7 +35,7 @@ test('one tweet per request; criteria are keep + bubbles (label: hint) + customs
   assert.deepEqual(req.ids, { t0: '222' });
   const crit = req.body.questions.t0.criteria;
   assert.deepEqual(Object.keys(crit), ['keep', 'c_rage', 'c_crypto', 'u0']);
-  assert.match(crit.c_rage, /^Political rage bait: /);
+  assert.match(crit.c_rage, /^A post that is itself political rage bait \(/);
   assert.equal(crit.u0, 'Spoilers for Severance');
   assert.equal(req.body.state.tweet.quoting, 'q');
 });

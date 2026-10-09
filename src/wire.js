@@ -18,11 +18,11 @@ export const COMMON = [
   { id: 'crypto', label: 'Crypto & memecoin shilling', hint: 'coin pumps, "100x" calls, wallet-connect links' },
   { id: 'engage', label: 'Engagement bait', hint: "'like if you agree', reply or repost farming, fake giveaways" },
   { id: 'hype', label: 'Vague AI hype', hint: "'this changes everything', 'X is dead', claims with no substance" },
-  { id: 'dunk', label: 'Dunking & pile-ons', hint: 'mocking or quote-dunking someone' },
+  { id: 'dunk', label: 'Dunking & pile-ons', hint: 'mocking or quote-dunking someone else; not self-deprecation or fair criticism' },
   { id: 'doom', label: 'Doom posting', hint: "'we're all cooked', collapse is coming" },
   { id: 'hustle', label: 'Hustle & get-rich-quick', hint: 'passive income and side-hustle gurus' },
   { id: 'flex', label: 'Revenue flexing', hint: "'I made $40k MRR in 30 days' posts" },
-  { id: 'thread', label: 'Thread bait', hint: "'10 tools that will save you 10 hours, a thread'" },
+  { id: 'thread', label: 'Thread bait', hint: "listicle hook threads ('10 AI tools that will save you 10 hours 🧵', 'here is what nobody tells you'); not ordinary threads, rants or opinions" },
   { id: 'culture', label: 'Culture-war bait', hint: 'gender wars and identity fights posted for clicks' },
   { id: 'sports', label: 'Sports', hint: 'scores, trades, hot takes' },
   { id: 'celeb', label: 'Celebrity gossip', hint: 'who is dating whom' },
@@ -73,7 +73,11 @@ export function normaliseSettings(raw = {}) {
 /** Every active mute: key (sent to Jev), label (shown to the reader), text (what Jev reads). */
 export function mutesOf(s) {
   return [
-    ...s.picked.map((id) => ({ key: `c_${id}`, label: COMMON_BY_ID[id].label, text: `${COMMON_BY_ID[id].label}: ${COMMON_BY_ID[id].hint}` })),
+    // Common bubbles are kinds of post, so they say "a post that is itself …": with the "about, or
+    // an example of" question, a bare label let posts that only talk about it match (a joke about
+    // writing threads was hidden as thread bait).
+    ...s.picked.map((id) => ({ key: `c_${id}`, label: COMMON_BY_ID[id].label,
+      text: `A post that is itself ${COMMON_BY_ID[id].label.toLowerCase()} (${COMMON_BY_ID[id].hint}); posts that only talk about it don't count` })),
     ...s.customs.map((c, i) => ({ key: `u${i}`, label: c, text: c })),
   ];
 }
