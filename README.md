@@ -1,4 +1,4 @@
-# Jev Mute
+# Signal & Noise
 
 A Chrome extension that hides posts you don't want on your X timeline. You list what you don't
 want in plain words ("rage bait about politics", "crypto shilling", "engagement bait"), and
@@ -37,5 +37,5 @@ npm test        # unit tests (node --test)
 npm run e2e     # real Jev call: loads the extension into Chrome, serves a fake X timeline at
                 # https://x.com/home via request interception, checks what gets hidden; needs
                 # TYPESAFE_API_KEY or ~/.config/typesafe/api_key; screenshots go to shots/
-npm run zip     # jev-mute.zip for the Chrome Web Store
+npm run zip     # signal-and-noise.zip for the Chrome Web Store
 ```

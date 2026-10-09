@@ -1,5 +1,5 @@
 {
-  "name": "jev-mute",
+  "name": "signal-and-noise",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,7 +7,7 @@
   "scripts": {
     "test": "node --test test/",
     "e2e": "node scripts/e2e.js",
-    "zip": "rm -f jev-mute.zip && zip -r jev-mute.zip manifest.json src icons"
+    "zip": "rm -f signal-and-noise.zip && zip -r signal-and-noise.zip manifest.json src icons"
   },
   "devDependencies": {
     "puppeteer": "^24.43.1"

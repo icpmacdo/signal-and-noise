@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Jev Mute",
+  "name": "Signal & Noise",
   "version": "0.1.0",
-  "description": "Describe the posts you don't want on X in plain words; Jev folds them away before you scroll to them.",
+  "description": "Say what counts as noise on X in plain words. Jev folds it away before you scroll to it.",
   "permissions": ["storage"],
   "host_permissions": ["https://api.typesafe.ai/*"],
   "background": { "service_worker": "src/background.js", "type": "module" },
