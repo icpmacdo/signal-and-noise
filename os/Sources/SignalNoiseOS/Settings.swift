@@ -7,7 +7,9 @@ struct Settings: Codable, Equatable {
   var picked = Bubbles.defaultPicked
   var customs: [String] = []
   var threshold = 0.6
-  var mode = Mode.tiles
+  /// Grid won on real pages (2026-10-09, six sites via OpenRouter): ~0.7 s per screen vs ~1.8 s,
+  /// 2 requests vs 40, and it covered more of each ad.
+  var mode = Mode.grid
   var grid = GridSpec(cols: 8, rows: 5)
   /// Reshape masks with SAM 3 on fal.ai when a fal key is set.
   var tighterShapes = true

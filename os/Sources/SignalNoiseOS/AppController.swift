@@ -24,7 +24,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private var paused = true
 
   /// For testing against a stub: SNOS_DECISIONS_URL=http://127.0.0.1:8787/v1/decisions
-  private let decisionsURL = ProcessInfo.processInfo.environment["SNOS_DECISIONS_URL"].flatMap(URL.init(string:)) ?? Decisions.defaultURL
+  private let decisionsURL = ProcessInfo.processInfo.environment["SNOS_DECISIONS_URL"].flatMap(URL.init(string:))
   private let samURL = ProcessInfo.processInfo.environment["SNOS_SAM_URL"].flatMap(URL.init(string:)) ?? SAMClient.defaultURL
 
   func applicationDidFinishLaunching(_ notification: Notification) {
@@ -49,7 +49,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   private func pauseReason() -> String? {
     if !settings.enabled { return "Off" }
-    if key.isEmpty && decisionsURL == Decisions.defaultURL { return "Needs an OpenAI key" }
+    if key.isEmpty && decisionsURL == nil { return "Needs an OpenAI or OpenRouter key" }
     if settings.bubbles.isEmpty { return "Pick something to hide" }
     if !CGPreflightScreenCaptureAccess() { return "Needs Screen Recording permission (System Settings › Privacy & Security)" }
     if IsSecureEventInputEnabled() { return "Paused: password entry" }
@@ -185,8 +185,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     submenu(menu, "Finding regions", finding)
 
     menu.addItem(.separator())
-    item(menu, key.isEmpty ? "Set OpenAI key…" : "Change OpenAI key…") { c in
-      if let k = c.prompt("OpenAI API key", info: "Stored in your login keychain. Used only for api.openai.com/v1/decisions.", secure: true) {
+    item(menu, key.isEmpty ? "Set OpenAI or OpenRouter key…" : "Change OpenAI or OpenRouter key…") { c in
+      if let k = c.prompt("OpenAI or OpenRouter API key", info: "Stored in your login keychain. An OpenAI key (sk-…) calls api.openai.com/v1/decisions; an OpenRouter key (sk-or-…) calls openrouter.ai/api/alpha/decisions. Same model either way.", secure: true) {
         KeyStore.save(k); c.key = KeyStore.load(); c.changed(keepCache: true)
       }
     }

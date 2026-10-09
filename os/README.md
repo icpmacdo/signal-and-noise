@@ -20,8 +20,11 @@ open "build/Signal & Noise OS.app"
 
 1. macOS asks for **Screen Recording** permission (System Settings › Privacy & Security). Allow it
    and reopen the app. With ad-hoc signing, macOS may ask again after each rebuild.
-2. Menu bar icon → **Set OpenAI key…**. The key is kept in the login keychain; `OPENAI_API_KEY`
-   or `~/.config/openai/api_key` also work.
+2. Menu bar icon → **Set OpenAI or OpenRouter key…**. The key is kept in the login keychain;
+   `OPENAI_API_KEY` or `~/.config/openai/api_key` also work. An OpenRouter key (`sk-or-…`)
+   reaches the same model at `openrouter.ai/api/alpha/decisions`
+   (`openai/gpt-6-luna-decisions`), which takes a different request shape; the app picks the
+   route from the key.
 3. Menu → **Hide** → pick bubbles, or **Add your own…**. Ads are on by default.
 4. Optional: **Set fal.ai key (for SAM)…** for tighter mask shapes. `FAL_KEY` or
    `~/.config/fal/api_key` also work. Turn it off under Finding regions.
@@ -41,13 +44,13 @@ cells, requests, seconds, what was hidden and any errors.
   answers are dropped if the cell has changed since. When an answer says hide, the mask fades in
   over 0.3 s.
 - **Finding regions from pixels** (menu → Finding regions):
-  - **Tiles** (default): one request per cell, a crop of the cell plus half a cell of context
+  - **Tiles**: one request per cell, a crop of the cell plus half a cell of context
     around it, the cell outlined in red, and one predicate per bubble ("does the outlined region
     show an ad?"). These are whole-image questions, the kind the model is documented on. Up to
     12 run at once.
-  - **Grid**: one image of the whole screen with a labelled grid (A1…H5), and one choice question
-    per cell, 20 per request. Fewer images, but it relies on the model pointing at parts of an
-    image, which hasn't been tested.
+  - **Grid** (default): one image of the whole screen with a labelled grid (A1…H5), and one choice
+    question per cell, 20 per request. It relies on the model pointing at labelled cells, and on
+    real pages it did that well (see First results).
 - **Tighter shapes (SAM)**: when a new masked block appears, SAM 3 gets a crop of the block plus
   half a cell of margin, with the matching bubble as a noun phrase ("advertisement", "meme
   image"; your own words for custom bubbles). Boxes it finds (score ≥ 0.35, not tiny, not the
@@ -62,6 +65,21 @@ cells, requests, seconds, what was hidden and any errors.
   (a password field has focus), or while a never-capture app is in front (1Password, Bitwarden,
   Passwords, Keychain Access, System Settings). Those apps' windows are also left out of every
   capture.
+
+## First results (2026-10-09, via OpenRouter)
+
+Six real pages (Allrecipes, CNN, Daily Mail, old Reddit, Speedtest, Weather.com) were screenshotted
+at 1440×900 in a headless browser and judged for Ads + Memes on an 8×5 grid:
+
+| | per screen | requests | what it did |
+|---|---|---|---|
+| grid | 0.56–0.83 s | 2 | covered most of each real ad (leaderboards, side rails, video ad); a few false positives (a recipe photo, a heading) |
+| tiles | 1.45–2.40 s | 40 | covered parts of ads and missed some (1 of 5 cells of the Speedtest banner) |
+
+Nothing was masked on pages that had no loaded ads (empty CNN slot, Reddit login wall). Every call
+answered. Each request is a few thousand input tokens at $0.10 per million, so roughly $0.0005 per
+screen in grid mode. Six pages is a smoke test, not a benchmark: run `snos-eval` on your own
+screenshots to tune the strictness.
 
 ## Privacy
 
@@ -106,4 +124,4 @@ ScreenCaptureKit). `Sources/snos-eval` is the eval command.
   cell is reshaped again (another call).
 - SAM shapes follow the grid's movement rules: they drop when the cells under them change, so a
   shape that spills past its block can briefly stay over content that scrolled away.
-- Neither API has been run for real yet, only against stubs.
+- Decisions has been run for real (via OpenRouter); SAM has only been run against a stub.

@@ -6,7 +6,7 @@
 //   swift run snos-eval ~/Desktop/shots --mode tiles --grid 12x8 --bubbles ads,violence --custom "spiders"
 //   swift run snos-eval ~/Desktop/shots --mode tiles --sam     # also reshape masks with SAM 3 on fal.ai
 //
-// Keys: OPENAI_API_KEY or ~/.config/openai/api_key; for --sam, FAL_KEY or ~/.config/fal/api_key.
+// Keys: OPENAI_API_KEY or ~/.config/openai/api_key (an OpenRouter sk-or- key works too); for --sam, FAL_KEY or ~/.config/fal/api_key.
 // SNOS_DECISIONS_URL / SNOS_SAM_URL point it at stubs instead.
 import Foundation
 import MaskCore
@@ -50,10 +50,10 @@ for p in picked where !Bubbles.common.contains(where: { $0.id == p }) {
 let bubbles = Bubbles.active(picked: picked, customs: customs)
 
 let env = ProcessInfo.processInfo.environment
-let url = env["SNOS_DECISIONS_URL"].flatMap(URL.init(string:)) ?? Decisions.defaultURL
+let url = env["SNOS_DECISIONS_URL"].flatMap(URL.init(string:))
 let keyFile = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/openai/api_key")
 let key = env["OPENAI_API_KEY"] ?? (try? String(contentsOf: keyFile, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-if key.isEmpty && url == Decisions.defaultURL { fail("no key: set OPENAI_API_KEY or write it to ~/.config/openai/api_key") }
+if key.isEmpty && url == nil { fail("no key: set OPENAI_API_KEY (an OpenAI or OpenRouter key) or write it to ~/.config/openai/api_key") }
 let client = DecisionsClient(key: key, url: url, timeout: 30)
 var sam: SAMClient?
 if useSAM {
@@ -111,7 +111,7 @@ for file in files {
       samSeconds = Date().timeIntervalSince(t0)
       print(String(format: "  SAM: %d blocks reshaped, %.2f s", shapes.count, samSeconds))
     }
-    print(String(format: "%@ %@: %d/%d answered, %d masked, %d requests, %.2f s%@", file.lastPathComponent, mode.rawValue,
+    print(String(format: "%@ %@ via %@: %d/%d answered, %d masked, %d requests, %.2f s%@", file.lastPathComponent, mode.rawValue, client.route.rawValue,
                  r.verdicts.count, spec.count, hidden.count, r.requests, r.seconds, r.errors.isEmpty ? "" : ", \(r.errors.count) errors"))
     for e in r.errors.prefix(2) { print("  error: \(e)") }
     rows.append(Row(file: file.lastPathComponent, mode: mode.rawValue, seconds: r.seconds, requests: r.requests, errors: r.errors,

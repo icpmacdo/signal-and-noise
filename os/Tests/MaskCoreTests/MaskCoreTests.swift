@@ -263,3 +263,33 @@ final class SegmenterTests: XCTestCase {
     XCTAssertEqual(area, CGRect(x: 0, y: 0, width: 250, height: 150))
   }
 }
+
+final class OpenRouterTests: XCTestCase {
+  func testKeyPicksRoute() {
+    XCTAssertEqual(DecisionsClient(key: "sk-or-v1-abc").url.absoluteString, "https://openrouter.ai/api/alpha/decisions")
+    XCTAssertEqual(DecisionsClient(key: "sk-or-v1-abc").model, "openai/gpt-6-luna-decisions")
+    XCTAssertEqual(DecisionsClient(key: "sk-proj-abc").url.absoluteString, "https://api.openai.com/v1/decisions")
+  }
+
+  func testBodyPutsImageInStateAndKeysQuestions() {
+    let body = Decisions.body(text: "hi", imageDataURL: "data:image/jpeg;base64,AAA",
+                              questions: [.predicate(name: "ads", instructions: "ad?"),
+                                          .choice(name: "C2", instructions: "what?", choices: [("keep", "other"), ("ads", "an ad")])],
+                              model: "openai/gpt-6-luna-decisions", route: .openrouter)
+    let state = body["state"] as! [[String: Any]]
+    XCTAssertEqual(state[0]["type"] as? String, "text")
+    XCTAssertEqual((state[1]["image_url"] as? [String: String])?["url"], "data:image/jpeg;base64,AAA")
+    let qs = body["questions"] as! [String: [String: Any]]
+    XCTAssertEqual(qs["ads"]?["type"] as? String, "noul")
+    XCTAssertEqual(qs["C2"]?["criteria"] as? [String: String], ["keep": "other", "ads": "an ad"])
+  }
+
+  func testParsesKeyedAnswers() throws {
+    // As OpenRouter returned it on 2026-10-09.
+    let json = #"{"model":"openai/gpt-6-luna-decisions-20261006","answers":{"ads":{"type":"noul","noul":0.8},"kind":{"type":"choice","choice":"ads","probabilities":{"keep":0,"ads":1},"confidence":1}},"usage":{"input_tokens":273}}"#
+    let a = try Decisions.parse(Data(json.utf8))
+    XCTAssertEqual(a["ads"]?.probability, 0.8)
+    XCTAssertEqual(a["kind"]?.choice, "ads")
+    XCTAssertEqual(a["kind"]?.probabilities["ads"], 1)
+  }
+}
