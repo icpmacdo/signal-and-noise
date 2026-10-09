@@ -1,0 +1,537 @@
+<title>Run Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;600&family=Public+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+/*TOKENS*/
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); padding-inline: 16px; padding-block: 28px 64px; }
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 44px; }
+.col { max-width: 68ch; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(34px, 6vw, 56px); font-stretch: 112%; font-weight: 800; line-height: 1; }
+h2 { font-size: 26px; font-stretch: 105%; font-weight: 750; }
+h3 { font-size: 15px; font-weight: 700; }
+p { margin: 0; }
+.eyebrow { font: 600 11.5px/1 var(--mono); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); }
+.lede { font-size: 17.5px; color: var(--ink-2); max-width: 64ch; }
+.stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.muted { color: var(--ink-2); }
+.small { font-size: 13px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.prov { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 12px/1 var(--mono); padding: 6px 9px; border: 1px solid var(--line-2); border-radius: 999px; color: var(--ink-2); background: var(--panel); white-space: nowrap; }
+.chip.warn { border-color: var(--unsure); color: var(--unsure); }
+
+.controls { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); padding-block: 10px; margin-inline: -16px; padding-inline: 16px; }
+.controls-inner { max-width: 1120px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.ctl-label { font: 600 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.seg button { font: 600 13px/1 var(--body); padding: 8px 12px; border: 0; background: none; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.seg button + button { border-left: 1px solid var(--line-2); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.status { font: 12px var(--mono); color: var(--ink-2); display: inline-flex; gap: 8px; align-items: center; }
+.status .bar { width: 90px; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.status .bar i { display: block; height: 100%; background: var(--accent); width: 0; }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; min-width: 0; }
+
+/* strategy picker */
+.strats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.strat { text-align: left; font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; cursor: pointer; display: grid; gap: 6px; align-content: start; }
+.strat .top { display: flex; align-items: center; gap: 8px; }
+.strat .sw { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.strat .name { font: 700 14.5px/1.2 var(--display); }
+.strat .desc { font-size: 12.5px; color: var(--ink-2); }
+.strat .tick { margin-left: auto; font: 600 10.5px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.strat[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.strat[aria-pressed="true"] .tick { color: var(--ink); }
+
+/* summary cards */
+.sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.scard { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 12px; align-content: start; }
+.scard .head { display: flex; gap: 8px; align-items: center; font: 700 15px/1.2 var(--display); }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: 13.5px; }
+.kv .k { color: var(--ink-2); }
+.kv .v { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+.kv .v.big { font-size: 22px; font-weight: 700; }
+.kv .v.bad { color: var(--noise); } .kv .v.ok { color: var(--good); }
+
+/* inputs */
+.inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px 22px; }
+.field { display: grid; gap: 5px; }
+.field label { font-size: 13px; color: var(--ink-2); display: flex; justify-content: space-between; gap: 8px; }
+.field input[type=range] { accent-color: var(--accent); width: 100%; }
+.field input[type=number] { font: 14px var(--mono); padding: 6px 8px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--panel); color: var(--ink); width: 100%; }
+.guess { font: 600 10.5px/1 var(--mono); color: var(--unsure); letter-spacing: 0.06em; text-transform: uppercase; }
+.rates { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr) minmax(0, 2fr); gap: 8px 14px; align-items: center; font-size: 13px; }
+.rates .hdr { font: 600 10.5px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.rates .cell { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.rates .cell input { flex: 1; min-width: 0; accent-color: var(--accent); }
+.rates .cell span { font: 12px var(--mono); width: 3.6em; text-align: right; color: var(--ink-2); }
+.toggle { display: inline-flex; gap: 8px; align-items: center; font-size: 13.5px; color: var(--ink-2); cursor: pointer; }
+.toggle input { accent-color: var(--accent); }
+
+/* charts */
+.chart svg { width: 100%; height: auto; display: block; min-width: 560px; }
+.chart text { fill: var(--ink-3); font: 11px var(--mono); }
+.chart .grp { fill: var(--ink); font: 700 12.5px var(--body); }
+.gridline { stroke: var(--line); stroke-width: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--ink-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.legend i.tick { width: 2px; height: 12px; border-radius: 0; background: var(--ink); }
+.legend i.cap { width: 12px; height: 0; border-top: 2px dashed var(--noise); border-radius: 0; vertical-align: 3px; }
+.hit { fill: transparent; cursor: pointer; }
+#tip { position: fixed; z-index: 20; max-width: min(320px, calc(100vw - 32px)); pointer-events: none; background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--r); padding: 10px 12px; font-size: 13px; box-shadow: 0 8px 28px rgb(0 0 0 / 0.18); }
+#tip b { font-family: var(--display); }
+#tip .kv { margin-top: 6px; font-size: 12.5px; }
+
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 11px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+td.bad { color: var(--noise); } td.ok { color: var(--good); }
+.swl { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 7px; }
+
+.unknowns { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.unk { border: 1px solid var(--line); border-radius: var(--r); padding: 14px; background: var(--panel); display: grid; gap: 6px; align-content: start; }
+.unk .kind { font: 600 10.5px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.rec { background: var(--ink); color: var(--bg); border-radius: var(--r); padding: 26px; display: grid; gap: 14px; }
+.rec h2 { color: var(--bg); }
+.rec .q { border-top: 1px solid color-mix(in srgb, var(--bg) 25%, transparent); padding-top: 14px; font-size: 17px; }
+.rec .eyebrow { color: color-mix(in srgb, var(--bg) 65%, transparent); }
+.rec ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+</style>
+
+<div class="wrap">
+  <header class="stack">
+    <div class="eyebrow">Signal &amp; Noise · decision 1</div>
+    <h1>Run Planner</h1>
+    <p class="lede">How many tweets from your feed should go to Jev, and which of them should Opus label, before we trust a threshold? Each strategy below is simulated a few hundred times: draw a feed, run the eval the way the strategy says, pick the line, then check what that line really does.</p>
+    <div class="prov" id="prov"></div>
+  </header>
+</div>
+
+<div class="controls" role="toolbar" aria-label="Simulation controls">
+  <div class="controls-inner">
+    <span class="ctl-label">Design being tuned</span>
+    <div class="seg" id="design-seg">
+      <button type="button" data-design="choice" aria-pressed="true">One question</button>
+      <button type="button" data-design="noul" aria-pressed="false">Yes/no per mute</button>
+    </div>
+    <span class="ctl-label">Pick the line by</span>
+    <div class="seg" id="rule-seg">
+      <button type="button" data-rule="upper" aria-pressed="true">90% upper bound under cap</button>
+      <button type="button" data-rule="point" aria-pressed="false">Estimate under cap</button>
+    </div>
+    <span class="status" aria-live="polite"><span class="bar"><i id="prog"></i></span><span id="status-text">Simulating…</span></span>
+  </div>
+</div>
+
+<div class="wrap" style="margin-top:28px">
+  <section class="stack" aria-labelledby="h-pick">
+    <h2 id="h-pick">Pick up to three strategies to compare</h2>
+    <div class="strats" id="strats"></div>
+  </section>
+
+  <section class="stack" aria-labelledby="h-sum">
+    <h2 id="h-sum">The short version</h2>
+    <p class="col muted">"Breaks the cap" means the line the run picked really hides more good tweets per 1,000 than your cap allows, judged against the simulated feed the run never saw. "Line wobble" is how far apart the 5th and 95th percentile picks land, in log-odds, averaged over the five mutes. 0 means every run picks the same line.</p>
+    <div class="sum" id="sum"></div>
+  </section>
+
+  <section class="stack" aria-labelledby="h-in">
+    <h2 id="h-in">Assumptions you can move</h2>
+    <div class="panel stack">
+      <div class="inputs">
+        <div class="field"><label for="budget"><span>Label budget (tweets Opus labels)</span><span class="mono" id="budget-v"></span></label><input id="budget" type="range" min="200" max="4000" step="50"><span class="small muted">Used by the stratified, two-stage and synthetic-mix strategies. The random ones label everything they score.</span></div>
+        <div class="field"><label for="cut"><span>Label every tweet any mute scores above</span><span class="mono" id="cut-v"></span></label><input id="cut" type="range" min="0.01" max="0.3" step="0.01"><span class="small muted">The smart and two-stage strategies label all of these first. Keep it below the lowest line you expect: AI hype's right line sits near 0.05, so at 0.1 its line rests on a thin random slice.</span></div>
+        <div class="field"><label for="cap"><span>Cap: good tweets wrongly hidden per 1,000</span><span class="mono" id="cap-v"></span></label><input id="cap" type="range" min="0.5" max="10" step="0.5"></div>
+        <div class="field"><label for="mess"><span>Real-world messiness</span><span class="mono" id="mess-v"></span></label><input id="mess" type="range" min="0.1" max="1.2" step="0.05"><span class="small muted">Log-odds noise added to every synthetic score so the simulated feed isn't a copy of 170 tweets. Real borderline language is messier than mine, so turn this up to see the real-world case.</span></div>
+        <div class="field"><label for="price"><span>Jev price, $ per million tokens</span><span class="guess">not published</span></label><input id="price" type="number" min="0" step="0.01" placeholder="unknown"></div>
+        <div class="field"><label class="toggle" for="both"><input id="both" type="checkbox"> Score both designs (two calls per tweet)</label><span class="small muted">Needed to choose between the designs on real data. It doubles calls, but not the tweets sent.</span></div>
+      </div>
+      <div class="stack" style="gap:8px">
+        <h3>Base-rate guesses <span class="guess" style="margin-left:6px">guesses until the feed run</span></h3>
+        <div class="rates" id="rates"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stack" aria-labelledby="h-wob">
+    <h2 id="h-wob">Where each strategy puts the line</h2>
+    <p class="col muted">One row per strategy inside each mute. The thin line spans 90% of runs, the thick bar the middle half, and the dot is the median. The black tick is the line you'd pick if you knew the true feed: the lowest line that keeps under the cap. Rare mutes are where small samples wobble, because the line is set by the two or three highest-scoring fine tweets in the sample.</p>
+    <div class="panel chart stack">
+      <div class="legend" id="leg1"></div>
+      <div id="wobble"></div>
+    </div>
+  </section>
+
+  <section class="stack" aria-labelledby="h-del">
+    <h2 id="h-del">What that line really does</h2>
+    <p class="col muted">The true number of good tweets wrongly hidden per 1,000, at the line each run picked, measured on the full simulated feed. Anything right of the dashed line breaks your cap.</p>
+    <div class="panel chart stack">
+      <div class="legend" id="leg2"></div>
+      <div id="deliver"></div>
+    </div>
+    <div class="panel tbl-wrap"><table id="detail"></table></div>
+  </section>
+
+  <section class="stack" aria-labelledby="h-cost">
+    <h2 id="h-cost">What each strategy costs</h2>
+    <p class="col muted">Privacy first: the first row is how many of your feed's tweets leave your machine for TypeSafe. Labelling happens locally with Opus agents and sends nothing out.</p>
+    <div class="panel tbl-wrap"><table id="costs"></table></div>
+    <p class="small muted" id="cost-note"></p>
+  </section>
+
+  <section class="stack" aria-labelledby="h-unk">
+    <h2 id="h-unk">What the simulation can't know</h2>
+    <div class="unknowns" id="unknowns"></div>
+  </section>
+
+  <section class="rec" aria-labelledby="h-rec">
+    <div class="eyebrow">Recommendation</div>
+    <h2 id="h-rec">Score 4,000, label about 900 in two stages</h2>
+    <ol>
+      <li><b>Two-stage active labelling matches random 4,000 at under a quarter of the labelling.</b> On the one-question design at the defaults, it breaks the 2-per-1,000 cap in 5% of runs with a line wobble of 0.35, using about 880 labels. Random 4,000 gets the same 5% and 0.35 but labels all 4,000. Both send 4,000 tweets to TypeSafe. That's about 4.8M Jev tokens if both designs are scored, and roughly 11 minutes end to end.</li>
+      <li><b>Pick each line with a 90% upper bound, not the estimate.</b> With the plain estimate, every strategy breaks the cap in 34–47% of runs, even at 4,000 labels. A line set exactly at the cap overshoots about as often as it undershoots. The upper bound brings that to 5–12% and costs almost no recall here.</li>
+      <li><b>Label everything above 0.03, not 0.1.</b> AI hype's right line sits near 0.05. With a 0.1 cutoff, its line rests on a thin random slice, and the smart strategy breaks the cap for that mute in 48% of runs.</li>
+      <li><b>If 4,000 is too many to send, random 1,000 is a usable fallback.</b> It breaks the cap in 9% of runs, with a worst case near 2.9 wrongly hidden per 1,000. But the rarest mute (crypto at 1%) gets only about 21 labelled examples, so its catch rate is known to about ±15 points. Don't let synthetic noise stand in for real: that mix breaks the cap in 14% of runs on one question and 41% on yes/no.</li>
+    </ol>
+    <p>At messiness 0.8, a guess at how much rougher real language is, active slips to 10% and random 1,000's wobble nearly doubles. The real run will be closer to that end.</p>
+    <p class="q"><b>The one question I'd most want answered:</b> Will you let 4,000 tweets from your feed go to TypeSafe for this run, or is 1,000 the ceiling? Everything else here is a setting I can choose, but that's your data.</p>
+  </section>
+</div>
+
+<div id="tip" hidden></div>
+
+<script>
+const DATA = /*DATA*/null;
+
+// ENGINE START — pure simulation code (also run under node to write the recommendation)
+const M = DATA.mutes.length;
+const STRATS = [
+  { id: 'r1k', name: 'Random 1,000', desc: 'Score 1,000 random feed tweets, label all of them.', scored: 1000 },
+  { id: 'r4k', name: 'Random 4,000', desc: 'Score 4,000, label all 4,000.', scored: 4000 },
+  { id: 'strat', name: 'Score 4,000, label smart', desc: 'Label every tweet any mute scores above a cutoff, plus a random slice of the rest, up to the budget. Weighted estimates.', scored: 4000 },
+  { id: 'active', name: 'Two-stage active', desc: 'Stage 1 is the smart split with 40% of the budget. Stage 2 spends the rest on tweets near each mute’s estimated line. Weighted.', scored: 4000 },
+  { id: 'mix', name: '1,000 real + synthetic', desc: 'Score 1,000 real tweets and label them smartly for false-hide rates. Recall comes from synthetic noise.', scored: 1000 },
+];
+const LO = Math.log(0.02 / 0.98), HI = Math.log(0.995 / 0.005), G = 90, STEP = (HI - LO) / G;
+const gridP = (g) => 1 / (1 + Math.exp(-(LO + g * STEP)));
+const lgt = (p) => { const q = Math.min(0.999, Math.max(0.001, p)); return Math.log(q / (1 - q)); };
+function rngOf(seed) { let s = seed >>> 0; return () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function erf(x) { const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x); const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return s * y; }
+const Phi = (z) => 0.5 * (1 + erf(z / Math.SQRT2));
+
+function setup(P) {
+  // Mixture components: noise for mute k, debatable for mute k, fine. Each draws a whole synthetic tweet.
+  const T = DATA.tweets, key = P.design === 'choice' ? 'ch' : 'no';
+  const lg = T.map((t) => t[key].map(lgt));
+  const comps = [];
+  for (let k = 0; k < M; k++) comps.push({ w: P.base[k], idx: T.map((_, i) => i).filter((i) => T[i].l[k] === 1) });
+  for (let k = 0; k < M; k++) comps.push({ w: P.deb[k], idx: T.map((_, i) => i).filter((i) => T[i].l[k] === 0.5) });
+  let used = comps.reduce((a, c) => a + c.w, 0); if (used > 0.9) { comps.forEach((c) => { c.w *= 0.9 / used; }); used = 0.9; }
+  comps.push({ w: 1 - used, idx: T.map((_, i) => i).filter((i) => T[i].l.every((v) => v === 0)) });
+  const cum = []; let a = 0; for (const c of comps) { a += c.w; cum.push(a); }
+  // True curves per mute over the grid, analytic over the jitter.
+  const truth = [];
+  for (let j = 0; j < M; j++) {
+    const wrong = new Float64Array(G + 1), hit = new Float64Array(G + 1); let posMass = 0;
+    for (const c of comps) for (const i of c.idx) {
+      const m = c.w / c.idx.length, l = T[i].l[j];
+      if (l === 1) posMass += m;
+      if (l === 0.5) continue;
+      for (let g = 0; g <= G; g++) { const pr = Phi((lg[i][j] - (LO + g * STEP)) / P.sigma) * m; if (l === 0) wrong[g] += pr; else hit[g] += pr; }
+    }
+    const wrong1k = Array.from(wrong, (v) => v * 1000), recall = Array.from(hit, (v) => (posMass ? v / posMass : 0));
+    let best = G; for (let g = 0; g <= G; g++) if (wrong1k[g] <= P.cap) { best = g; break; }
+    truth.push({ wrong1k, recall, best, posRate: posMass });
+  }
+  return { T, lg, comps, cum, truth };
+}
+
+function drawPool(E, P, rnd, n) {
+  // Returns arrays: src index, jittered logits per mute (flattened), labels.
+  const src = new Int32Array(n), s = new Float32Array(n * M);
+  let spare = null;
+  const gauss = () => { if (spare !== null) { const v = spare; spare = null; return v; } let u = 0, v = 0; while (u === 0) u = rnd(); v = rnd(); const r = Math.sqrt(-2 * Math.log(u)); spare = r * Math.sin(2 * Math.PI * v); return r * Math.cos(2 * Math.PI * v); };
+  for (let i = 0; i < n; i++) {
+    const u = rnd(); let c = 0; while (c < E.cum.length - 1 && u > E.cum[c]) c++;
+    const idx = E.comps[c].idx; const t = idx[Math.floor(rnd() * idx.length)];
+    src[i] = t;
+    for (let j = 0; j < M; j++) s[i * M + j] = E.lg[t][j] + gauss() * P.sigma;
+  }
+  return { src, s, n };
+}
+
+const binOf = (x) => Math.max(0, Math.min(G, Math.floor((x - LO) / STEP)));
+
+// Post-stratified weights: cells = groups of pool indices; weight = cell size / labelled in cell.
+function weightsFrom(cells, labelled) {
+  const w = new Map();
+  for (const cell of cells) { const lab = cell.filter((i) => labelled.has(i)); if (!lab.length) continue; const wt = cell.length / lab.length; for (const i of lab) w.set(i, wt); }
+  return w;
+}
+function sampleK(arr, k, rnd) { const a = arr.slice(); const n = Math.min(k, a.length); for (let i = 0; i < n; i++) { const j = i + Math.floor(rnd() * (a.length - i)); [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, n); }
+
+function stratified(P, pool, n, budget, rnd) {
+  const cand = [], rest = [];
+  for (let i = 0; i < n; i++) { let mx = -99; for (let j = 0; j < M; j++) mx = Math.max(mx, pool.s[i * M + j]); (mx >= lgt(P.cut) ? cand : rest).push(i); }
+  let pickC, pickR;
+  if (cand.length <= budget) { pickC = cand; pickR = sampleK(rest, budget - cand.length, rnd); }
+  else { pickC = sampleK(cand, Math.round(budget * 0.85), rnd); pickR = sampleK(rest, budget - pickC.length, rnd); }
+  const labelled = new Set([...pickC, ...pickR]);
+  return { labelled, cells: [cand, rest] };
+}
+
+function chooseLines(E, P, pool, n, w) {
+  // Per mute: smallest grid line whose weighted wrongly-hidden-per-1000 estimate is under the cap.
+  const out = [];
+  for (let j = 0; j < M; j++) {
+    const bins = new Float64Array(G + 1), sq = new Float64Array(G + 1); let pos = 0;
+    for (const [i, wt] of w) { const l = E.T[pool.src[i]].l[j]; if (l === 1) pos++; if (l !== 0) continue; const b = binOf(pool.s[i * M + j]); bins[b] += wt; sq[b] += wt * wt; }
+    // 'point': estimate under the cap. 'upper': a one-sided 90% upper bound under the cap
+    // (normal approximation on the weighted count, with one pseudo-count so zero isn't certainty).
+    let suffix = 0, varSum = 0, line = G;
+    const lim = (P.cap * n) / 1000;
+    for (let g = G; g >= 0; g--) {
+      suffix += bins[g]; varSum += sq[g];
+      const est = P.rule === 'upper' ? suffix + 1.2816 * Math.sqrt(varSum + 1) : suffix;
+      if (est > lim) { line = g + 1; break; } if (g === 0) line = 0;
+    }
+    out.push({ line: Math.min(G, line), pos });
+  }
+  return out;
+}
+
+function runOnce(E, P, strat, seed) {
+  const rnd = rngOf(seed);
+  const big = drawPool(E, P, rnd, 4000); // common random numbers: the 1,000 strategies use the first 1,000
+  const rs = rngOf(seed ^ 0x9e3779b9);
+  let n, w, labels;
+  if (strat === 'r1k' || strat === 'r4k') {
+    n = strat === 'r1k' ? 1000 : 4000; w = new Map(); for (let i = 0; i < n; i++) w.set(i, 1); labels = n;
+  } else if (strat === 'strat') {
+    n = 4000; const st = stratified(P, big, n, P.budget, rs); w = weightsFrom(st.cells, st.labelled); labels = st.labelled.size;
+  } else if (strat === 'active') {
+    n = 4000; const b1 = Math.round(P.budget * 0.4); const st = stratified(P, big, n, b1, rs);
+    const w1 = weightsFrom(st.cells, st.labelled); const est = chooseLines(E, P, big, n, w1);
+    const band = []; const inBand = new Uint8Array(n);
+    for (let i = 0; i < n; i++) for (let j = 0; j < M; j++) { const d = big.s[i * M + j] - (LO + est[j].line * STEP); if (Math.abs(d) < 1.0) { inBand[i] = 1; break; } }
+    for (let i = 0; i < n; i++) if (inBand[i]) band.push(i);
+    const bandUnl = band.filter((i) => !st.labelled.has(i));
+    for (const i of sampleK(bandUnl, P.budget - st.labelled.size, rs)) st.labelled.add(i);
+    const cand = st.cells[0].filter((i) => !inBand[i]), rest = st.cells[1].filter((i) => !inBand[i]);
+    w = weightsFrom([band, cand, rest], st.labelled); labels = st.labelled.size;
+  } else { // mix: 1,000 real, smart labels with up to 40% of the budget capped at 1,000
+    n = 1000; const st = stratified(P, big, n, Math.min(1000, Math.round(P.budget * 0.4)), rs); w = weightsFrom(st.cells, st.labelled); labels = st.labelled.size;
+  }
+  const lines = chooseLines(E, P, big, n, w);
+  return lines.map((r, j) => ({ line: r.line, pos: strat === 'mix' ? DATA.tweets.filter((t) => t.l[j] === 1).length : r.pos,
+    wrong: E.truth[j].wrong1k[r.line], recall: E.truth[j].recall[r.line], labels }));
+}
+
+function quant(a, q) { const b = Float64Array.from(a).sort(); const i = (b.length - 1) * q, lo = Math.floor(i), hi = Math.ceil(i); return b[lo] + (b[hi] - b[lo]) * (i - lo); }
+function summarise(E, P, runs) {
+  // runs: array of per-run arrays (per mute)
+  const per = [];
+  for (let j = 0; j < M; j++) {
+    const lines = runs.map((r) => r[j].line), wrong = runs.map((r) => r[j].wrong), rec = runs.map((r) => r[j].recall), pos = runs.map((r) => r[j].pos);
+    per.push({ l05: quant(lines, 0.05), l25: quant(lines, 0.25), l50: quant(lines, 0.5), l75: quant(lines, 0.75), l95: quant(lines, 0.95),
+      w05: quant(wrong, 0.05), w50: quant(wrong, 0.5), w95: quant(wrong, 0.95), breaks: wrong.filter((v) => v > P.cap + 1e-9).length / runs.length,
+      rec50: quant(rec, 0.5), pos50: quant(pos, 0.5), best: E.truth[j].best, bestRecall: E.truth[j].recall[E.truth[j].best] });
+  }
+  const labels = quant(runs.map((r) => r[0].labels), 0.5);
+  const wob = per.reduce((a, p) => a + (p.l95 - p.l05) * STEP, 0) / M;
+  const breaks = per.reduce((a, p) => a + p.breaks, 0) / M;
+  return { per, labels, wob, breaks };
+}
+
+function costs(P, strat, labels) {
+  const s = STRATS.find((x) => x.id === strat);
+  const calls = s.scored * (P.both ? 2 : 1);
+  const tokens = calls * (520 + 75);
+  const labelPasses = labels * 2 * 1.15;
+  const batches = Math.ceil(labelPasses / 150);
+  const labelMin = Math.ceil(batches / 8) * 5; // 8 agents in parallel, ~5 min per batch of 150
+  const jevMin = (calls / 12) * (DATA.meta.latencyP50 / 1000) / 60 * 1.3;
+  return { sent: s.scored, calls, tokens, dollars: P.price ? (tokens / 1e6) * P.price : null, labels, batches, labelMin, jevMin, totalMin: labelMin + jevMin };
+}
+// ENGINE END
+
+// ---------- UI ----------
+const SER = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)'];
+const COL = Object.fromEntries(STRATS.map((s, i) => [s.id, SER[i]]));
+const SHORT = DATA.short;
+const store = { get(k, d) { try { const v = localStorage.getItem('rp:' + k); return v ? JSON.parse(v) : d; } catch { return d; } }, set(k, v) { try { localStorage.setItem('rp:' + k, JSON.stringify(v)); } catch {} } };
+const P = Object.assign({ design: 'choice', rule: 'upper', cut: 0.03, budget: 1200, cap: 2, sigma: 0.4, price: null, both: true,
+  base: [0.02, 0.01, 0.03, 0.05, 0.06], deb: [0.02, 0.01, 0.03, 0.06, 0.06] }, store.get('P', {}));
+let picked = store.get('picked', ['r1k', 'r4k', 'active']);
+const RUNS = 240;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = (x, d = 1) => (x >= 100 ? Math.round(x).toLocaleString() : x >= 10 ? x.toFixed(0) : x.toFixed(d));
+const pct = (x) => (x * 100 < 1 && x > 0 ? (x * 100).toFixed(1) : Math.round(x * 100)) + '%';
+const mins = (m) => (m < 60 ? `${Math.max(1, Math.round(m))} min` : `${(m / 60).toFixed(1)} h`);
+
+document.getElementById('prov').innerHTML = [`${DATA.tweets.length} synthetic tweets as the score source`, `scored by ${DATA.meta.model}`, `p50 ${DATA.meta.latencyP50} ms per call`, `${RUNS} simulated runs per strategy`]
+  .map((s) => `<span class="chip">${s}</span>`).join('') + '<span class="chip warn">base rates are guesses</span><span class="chip warn">labellers assumed perfect</span>';
+
+function renderPicker() {
+  document.getElementById('strats').innerHTML = STRATS.map((s) => `<button type="button" class="strat" data-id="${s.id}" aria-pressed="${picked.includes(s.id)}"><span class="top"><span class="sw" style="background:${COL[s.id]}"></span><span class="name">${s.name}</span><span class="tick">${picked.includes(s.id) ? 'comparing' : 'add'}</span></span><span class="desc">${s.desc}</span></button>`).join('');
+}
+document.getElementById('strats').addEventListener('click', (e) => {
+  const b = e.target.closest('.strat'); if (!b) return; const id = b.dataset.id;
+  if (picked.includes(id)) { if (picked.length > 1) picked = picked.filter((x) => x !== id); } else { picked.push(id); if (picked.length > 3) picked.shift(); }
+  picked = STRATS.map((s) => s.id).filter((x) => picked.includes(x)); store.set('picked', picked); renderPicker(); renderResults();
+});
+
+function renderInputs() {
+  const set = (id, v, txt) => { const el = document.getElementById(id); el.value = v; document.getElementById(id + '-v').textContent = txt; };
+  set('budget', P.budget, P.budget.toLocaleString()); set('cap', P.cap, P.cap.toFixed(1)); set('cut', P.cut, P.cut.toFixed(2)); set('mess', P.sigma, `±${P.sigma.toFixed(2)}`);
+  document.getElementById('price').value = P.price ?? ''; document.getElementById('both').checked = P.both;
+  document.querySelectorAll('#design-seg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.design === P.design)));
+  document.querySelectorAll('#rule-seg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.rule === P.rule)));
+  document.getElementById('rates').innerHTML = '<span class="hdr">Mute</span><span class="hdr">Noise share</span><span class="hdr">Debatable share</span>'
+    + SHORT.map((s, j) => `<span><span class="swl" style="background:${SER[j]}"></span>${s}</span>
+      <span class="cell"><input type="range" min="0" max="100" step="1" value="${Math.round(P.base[j] * 1000)}" data-k="base" data-j="${j}" aria-label="${s} noise share"><span>${pct(P.base[j])}</span></span>
+      <span class="cell"><input type="range" min="0" max="100" step="1" value="${Math.round(P.deb[j] * 1000)}" data-k="deb" data-j="${j}" aria-label="${s} debatable share"><span>${pct(P.deb[j])}</span></span>`).join('');
+}
+let debounce = null;
+const changed = () => { store.set('P', P); clearTimeout(debounce); debounce = setTimeout(simulate, 250); };
+document.getElementById('budget').addEventListener('input', (e) => { P.budget = Number(e.target.value); document.getElementById('budget-v').textContent = P.budget.toLocaleString(); changed(); });
+document.getElementById('cut').addEventListener('input', (e) => { P.cut = Number(e.target.value); document.getElementById('cut-v').textContent = P.cut.toFixed(2); changed(); });
+document.getElementById('cap').addEventListener('input', (e) => { P.cap = Number(e.target.value); document.getElementById('cap-v').textContent = P.cap.toFixed(1); changed(); });
+document.getElementById('mess').addEventListener('input', (e) => { P.sigma = Number(e.target.value); document.getElementById('mess-v').textContent = `±${P.sigma.toFixed(2)}`; changed(); });
+document.getElementById('price').addEventListener('input', (e) => { const v = parseFloat(e.target.value); P.price = Number.isFinite(v) && v > 0 ? v : null; store.set('P', P); renderResults(); });
+document.getElementById('both').addEventListener('change', (e) => { P.both = e.target.checked; store.set('P', P); renderResults(); });
+document.getElementById('rates').addEventListener('input', (e) => { const el = e.target; if (!el.dataset.k) return; P[el.dataset.k][Number(el.dataset.j)] = el.value / 1000; el.nextElementSibling.textContent = pct(P[el.dataset.k][Number(el.dataset.j)]); changed(); });
+document.getElementById('rule-seg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; P.rule = b.dataset.rule; renderInputs(); changed(); });
+document.getElementById('design-seg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; P.design = b.dataset.design; renderInputs(); changed(); });
+
+// ---------- simulation driver (chunked) ----------
+let RESULTS = null, E = null, token = 0;
+function simulate() {
+  const my = ++token; E = setup(P);
+  const acc = Object.fromEntries(STRATS.map((s) => [s.id, []]));
+  let r = 0; const t0 = performance.now();
+  const status = document.getElementById('status-text'), prog = document.getElementById('prog');
+  const step = () => {
+    if (my !== token) return;
+    const until = performance.now() + 24;
+    while (r < RUNS && performance.now() < until) { for (const s of STRATS) acc[s.id].push(runOnce(E, P, s.id, 1000 + r)); r++; }
+    prog.style.width = `${(r / RUNS) * 100}%`; status.textContent = r < RUNS ? `Simulating… ${r}/${RUNS} runs` : `${RUNS} runs × ${STRATS.length} strategies in ${((performance.now() - t0) / 1000).toFixed(1)} s`;
+    if (r < RUNS) setTimeout(step, 0); else { RESULTS = Object.fromEntries(STRATS.map((s) => [s.id, summarise(E, P, acc[s.id])])); renderResults(); }
+  };
+  step();
+}
+
+// ---------- rendering ----------
+const tip = document.getElementById('tip');
+function showTip(html, ev) { tip.innerHTML = html; tip.hidden = false; const r = tip.getBoundingClientRect(); let x = ev.clientX + 14, y = ev.clientY + 14; if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14; if (y + r.height > innerHeight - 8) y = Math.max(8, ev.clientY - r.height - 14); tip.style.left = Math.max(8, x) + 'px'; tip.style.top = y + 'px'; }
+const hideTip = () => { tip.hidden = true; };
+function legend(extra) { return picked.map((id) => `<span><i style="background:${COL[id]}"></i>${STRATS.find((s) => s.id === id).name}</span>`).join('') + extra; }
+
+function renderSummary() {
+  document.getElementById('sum').innerHTML = picked.map((id) => {
+    const s = STRATS.find((x) => x.id === id), R = RESULTS[id], c = costs(P, id, R.labels);
+    return `<div class="scard"><div class="head"><span class="swl" style="background:${COL[id]};width:10px;height:10px"></span>${s.name}</div>
+      <div class="kv"><span class="k">Feed tweets sent to TypeSafe</span><span class="v big">${c.sent.toLocaleString()}</span>
+      <span class="k">Tweets Opus labels</span><span class="v">${Math.round(R.labels).toLocaleString()}</span>
+      <span class="k">Runs where a mute breaks the cap</span><span class="v ${R.breaks > 0.2 ? 'bad' : R.breaks < 0.08 ? 'ok' : ''}">${pct(R.breaks)}</span>
+      <span class="k">Line wobble (log-odds)</span><span class="v">${R.wob.toFixed(2)}</span>
+      <span class="k">Wall time, roughly</span><span class="v">${mins(c.totalMin)}</span></div></div>`;
+  }).join('');
+}
+
+function intervalChart(hostId, valueOf, opts) {
+  const w = 760, padL = 130, padR = 18, rowH = 13, gap = 16, top = 8;
+  const groupH = picked.length * rowH + gap;
+  const h = top + M * groupH + 30;
+  const X = opts.X(w, padL, padR);
+  let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${opts.aria}">`;
+  for (const t of opts.ticks) s += `<line class="gridline" x1="${X(t.v)}" x2="${X(t.v)}" y1="${top - 4}" y2="${h - 26}"/><text x="${X(t.v)}" y="${h - 10}" text-anchor="middle">${t.label}</text>`;
+  if (opts.cap != null) s += `<line x1="${X(opts.cap)}" x2="${X(opts.cap)}" y1="${top - 4}" y2="${h - 26}" stroke="var(--noise)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  for (let j = 0; j < M; j++) {
+    const y0 = top + j * groupH;
+    s += `<text class="grp" x="0" y="${y0 + (picked.length * rowH) / 2 + 4}">${SHORT[j]}</text>`;
+    if (opts.truth) { const tv = opts.truth(j); s += `<line x1="${X(tv)}" x2="${X(tv)}" y1="${y0 - 3}" y2="${y0 + picked.length * rowH - 1}" stroke="var(--ink)" stroke-width="2"/>`; }
+    picked.forEach((id, k) => {
+      const v = valueOf(RESULTS[id].per[j]), y = y0 + k * rowH + rowH / 2, col = COL[id];
+      s += `<line x1="${X(v.lo)}" x2="${X(v.hi)}" y1="${y}" y2="${y}" stroke="${col}" stroke-width="1.5"/>`;
+      if (v.q1 != null) s += `<rect x="${X(v.q1)}" y="${y - 3}" width="${Math.max(2, X(v.q3) - X(v.q1))}" height="6" rx="2" fill="${col}"/>`;
+      s += `<circle cx="${X(v.mid)}" cy="${y}" r="4.5" fill="${col}" stroke="var(--panel)" stroke-width="2"/>`;
+      s += `<rect class="hit" data-id="${id}" data-j="${j}" x="${padL}" y="${y - rowH / 2}" width="${w - padL - padR}" height="${rowH}"/>`;
+    });
+  }
+  s += `<text x="${(w + padL) / 2}" y="${h}" text-anchor="middle"></text></svg>`;
+  const el = document.getElementById(hostId); el.innerHTML = `<div class="tbl-wrap">${s}</div>`;
+  el.onpointermove = (ev) => { const r = ev.target.closest('.hit'); if (!r) return hideTip(); showTip(opts.tip(r.dataset.id, Number(r.dataset.j)), ev); };
+  el.onpointerleave = hideTip;
+}
+function lineTicks() { return [0.02, 0.05, 0.2, 0.5, 0.8, 0.95, 0.99].map((p) => ({ v: lgt(p), label: p })); }
+function tipHTML(id, j) {
+  const p = RESULTS[id].per[j], name = STRATS.find((s) => s.id === id).name;
+  return `<b>${name} · ${SHORT[j]}</b><div class="kv"><span class="k">Line picked (median)</span><span class="v">${gridP(p.l50).toFixed(2)}</span>
+    <span class="k">90% of runs between</span><span class="v">${gridP(p.l05).toFixed(2)}–${gridP(p.l95).toFixed(2)}</span>
+    <span class="k">Line if the feed were known</span><span class="v">${gridP(p.best).toFixed(2)}</span>
+    <span class="k">True wrongly hidden /1,000</span><span class="v">${fmt(p.w50, 2)} (${fmt(p.w05, 2)}–${fmt(p.w95, 2)})</span>
+    <span class="k">Runs breaking the cap</span><span class="v">${pct(p.breaks)}</span>
+    <span class="k">Noise it catches (median)</span><span class="v">${pct(p.rec50)} vs ${pct(p.bestRecall)} best</span>
+    <span class="k">Labelled noise examples</span><span class="v">${Math.round(p.pos50)}</span></div>`;
+}
+
+function renderCharts() {
+  document.getElementById('leg1').innerHTML = legend('<span><i class="tick"></i>Line if the feed were known</span>');
+  document.getElementById('leg2').innerHTML = legend('<span><i class="cap"></i>Your cap</span>');
+  intervalChart('wobble', (p) => ({ lo: LO + p.l05 * STEP, q1: LO + p.l25 * STEP, mid: LO + p.l50 * STEP, q3: LO + p.l75 * STEP, hi: LO + p.l95 * STEP }),
+    { aria: 'Spread of the threshold each strategy picks, per mute', ticks: lineTicks(), X: (w, l, r) => (v) => l + ((v - LO) / (HI - LO)) * (w - l - r), truth: (j) => LO + E.truth[j].best * STEP, tip: tipHTML });
+  const maxW = Math.max(P.cap * 2.5, ...picked.flatMap((id) => RESULTS[id].per.map((p) => p.w95))) * 1.05;
+  const step = maxW > 40 ? 10 : maxW > 16 ? 5 : maxW > 6 ? 2 : 1;
+  const ticks = []; for (let v = 0; v <= maxW; v += step) ticks.push({ v, label: v });
+  intervalChart('deliver', (p) => ({ lo: p.w05, mid: p.w50, hi: p.w95 }),
+    { aria: 'True good tweets wrongly hidden per 1000 at the line each strategy picked', ticks, cap: P.cap, X: (w, l, r) => (v) => l + (Math.min(v, maxW) / maxW) * (w - l - r), tip: tipHTML });
+
+  let rows = '<thead><tr><th>Mute</th><th>Strategy</th><th>Breaks cap</th><th>Wrongly hidden /1,000</th><th>Catches</th><th>Labelled noise</th></tr></thead><tbody>';
+  for (let j = 0; j < M; j++) picked.forEach((id, k) => {
+    const p = RESULTS[id].per[j];
+    rows += `<tr>${k === 0 ? `<td rowspan="${picked.length}"><span class="swl" style="background:${SER[j]}"></span>${SHORT[j]}<div class="small muted">known best: ${gridP(p.best).toFixed(2)}, catches ${pct(p.bestRecall)}</div></td>` : ''}
+      <td><span class="swl" style="background:${COL[id]}"></span>${STRATS.find((s) => s.id === id).name}</td>
+      <td class="num ${p.breaks > 0.2 ? 'bad' : p.breaks < 0.08 ? 'ok' : ''}">${pct(p.breaks)}</td><td class="num">${fmt(p.w50, 2)} <span class="muted">(${fmt(p.w05, 2)}–${fmt(p.w95, 2)})</span></td>
+      <td class="num">${pct(p.rec50)}</td><td class="num">${Math.round(p.pos50)}${id === 'mix' ? '*' : ''}</td></tr>`;
+  });
+  document.getElementById('detail').innerHTML = rows + '</tbody>';
+}
+
+function renderCosts() {
+  const cs = picked.map((id) => ({ id, c: costs(P, id, RESULTS[id].labels) }));
+  const row = (label, f) => `<tr><td>${label}</td>${cs.map(({ c }) => `<td class="num">${f(c)}</td>`).join('')}</tr>`;
+  document.getElementById('costs').innerHTML = `<thead><tr><th></th>${cs.map(({ id }) => `<th><span class="swl" style="background:${COL[id]}"></span>${STRATS.find((s) => s.id === id).name}</th>`).join('')}</tr></thead><tbody>`
+    + row('<b>Feed tweets sent to TypeSafe</b>', (c) => `<b>${c.sent.toLocaleString()}</b>`)
+    + row('Jev calls', (c) => c.calls.toLocaleString())
+    + row('Jev tokens', (c) => `${(c.tokens / 1e6).toFixed(2)} M`)
+    + row('Jev cost', (c) => (c.dollars == null ? 'unknown' : `$${c.dollars.toFixed(2)}`))
+    + row('Tweets labelled by Opus', (c) => Math.round(c.labels).toLocaleString())
+    + row('Label passes (2 labellers + 15% adjudication)', (c) => Math.round(c.labels * 2 * 1.15).toLocaleString())
+    + row('Agent batches of 150', (c) => c.batches.toLocaleString())
+    + row('Jev scoring time', (c) => mins(c.jevMin))
+    + row('Labelling time (8 agents in parallel)', (c) => mins(c.labelMin))
+    + '</tbody>';
+  document.getElementById('cost-note').textContent = `Tokens use the measured single-tweet call size (about 520 in, 75 out). Scoring time assumes 12 calls in flight at the measured p50 of ${DATA.meta.latencyP50} ms. Labelling time assumes about 5 minutes per batch of 150, which is a guess. * The synthetic mix takes its recall from the synthetic noise tweets, so its labelled-noise count is the synthetic count and its recall is as optimistic as my writing.`;
+}
+
+function renderResults() { if (!RESULTS) return; renderSummary(); renderCharts(); renderCosts(); }
+
+document.getElementById('unknowns').innerHTML = [
+  ['Known unknown', 'Base rates', 'Rarer noise means fewer labelled examples and a line set by fewer tweets. Every row above moves with these guesses.'],
+  ['Known unknown', 'Whose taste', 'Labellers are assumed perfect here. In the real run, two Opus labellers will disagree on dunking and AI hype, and their agreement caps how good any line can look. They also aren\'t you.'],
+  ['Simulation limit', 'Synthetic is too clean', 'Simulated scores are my 170 tweets plus noise. Real borderline language is messier, so real wobble will be wider. Push the messiness slider to see how far.'],
+  ['Method risk', 'Active learning needs its weights', 'Stage 2 deliberately over-samples tweets near the line. Read its labels without the weights and the false-hide estimate comes out several times too high or too low. Here the weights are post-stratified by cell.'],
+  ['Product risk', 'Lines are per phrasing', 'Every line here is tuned to five exact sentences. A user who writes their own mute gets an uncalibrated line, so the run should also test a few paraphrases per mute.'],
+].map(([k, h, b]) => `<div class="unk"><span class="kind">${k}</span><h3>${h}</h3><p class="small muted">${b}</p></div>`).join('');
+
+renderPicker(); renderInputs(); simulate();
+</script>
