@@ -259,43 +259,45 @@ def wrap(text, font, width):
     return lines
 
 
-def card_layer(author, text, width, max_lines=3):
-    f_who, f_txt = av(24, "demi"), av(29, "regular")
+def card_layer(author, text, width, max_lines=3, k=1.0):
+    f_who, f_txt = av(int(24 * k), "demi"), av(int(29 * k), "regular")
     text = clean(text)
-    lines = wrap(text, f_txt, width - 48)[:max_lines]
-    if len(wrap(text, f_txt, width - 48)) > max_lines:
+    pad = int(24 * k)
+    lines = wrap(text, f_txt, width - 2 * pad)[:max_lines]
+    if len(wrap(text, f_txt, width - 2 * pad)) > max_lines:
         lines[-1] = lines[-1].rstrip(".,") + "…"
-    h = 24 + 34 + len(lines) * 38 + 22
+    lh = int(38 * k)
+    h = int((24 + 34 + 22) * k) + len(lines) * lh
     img = Image.new("RGBA", (width, h), (0, 0, 0, 0))
     dr = ImageDraw.Draw(img)
     dr.rounded_rectangle((1, 1, width - 2, h - 2), radius=16, fill=(255, 255, 255, 120), outline=rgb255(INK) + (90,), width=2)
-    dr.text((24, 18), author, font=f_who, fill=rgb255(GREY) + (255,))
+    dr.text((pad, int(18 * k)), author, font=f_who, fill=rgb255(GREY) + (255,))
     for i, ln in enumerate(lines):
-        dr.text((24, 52 + i * 38), ln, font=f_txt, fill=rgb255(INK) + (255,))
+        dr.text((pad, int(52 * k) + i * lh), ln, font=f_txt, fill=rgb255(INK) + (255,))
     return Layer(img), h
 
 
-def bar_layer(reason, width):
-    f = av(26, "medium")
-    h = 58
+def bar_layer(reason, width, k=1.0):
+    f = av(int(26 * k), "medium")
+    h = int(58 * k)
     img = Image.new("RGBA", (width, h), (0, 0, 0, 0))
     dr = ImageDraw.Draw(img)
     dr.rounded_rectangle((1, 1, width - 2, h - 2), radius=14, fill=(255, 255, 255, 90), outline=rgb255(INK) + (60,), width=2)
-    dr.text((24, 13), f"Hidden · {reason}", font=f, fill=rgb255(GREY) + (255,))
-    fs = av(26, "demi")
-    dr.text((width - 24 - fs.getlength("Show"), 13), "Show", font=fs, fill=rgb255(SHOW_BLUE) + (255,))
+    dr.text((int(24 * k), int(13 * k)), f"Hidden · {reason}", font=f, fill=rgb255(GREY) + (255,))
+    fs = av(int(26 * k), "demi")
+    dr.text((width - int(24 * k) - fs.getlength("Show"), int(13 * k)), "Show", font=fs, fill=rgb255(SHOW_BLUE) + (255,))
     return Layer(img)
 
 
-def pill_layer(label, filled):
-    f = av(38, "demi")
-    w = int(f.getlength(label)) + 70
-    h = 80
+def pill_layer(label, filled, k=1.0):
+    f = av(int(38 * k), "demi")
+    w = int(f.getlength(label) + 70 * k)
+    h = int(80 * k)
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     dr = ImageDraw.Draw(img)
     if not filled:
         dr.rounded_rectangle((1, 1, w - 2, h - 2), radius=h // 2, outline=rgb255(INK) + (150,), width=2)
-    dr.text((35, 16), label, font=f, fill=rgb255(INK) + (255,))
+    dr.text((int(35 * k), int(16 * k)), label, font=f, fill=rgb255(INK) + (255,))
     return Layer(img), w, h
 
 

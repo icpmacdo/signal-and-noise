@@ -1,0 +1,291 @@
+<title>Signal &amp; Noise Storyboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..600&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: an animatic up top (phone frame + timeline), then the slides as a numbered sequence,
+   then what changed and what's left to decide. Paper and pigment from the trailer itself. */
+:root {
+  --bg: #f6f4ef;
+  --panel: #fdfcf9;
+  --ink: #18181c;
+  --ink-2: #4a4a52;
+  --ink-3: #7c7c84;
+  --line: #e2ded5;
+  --vermilion: #c94a26;
+  --prussian: #285a9e;
+  --ochre: #b8862c;
+  --accent: #285a9e;
+  --display: "Newsreader", "New York", Georgia, serif;
+  --body: "Public Sans", -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131416; --panel: #1b1c1f; --ink: #ece9e2; --ink-2: #b9b5ad; --ink-3: #85827b; --line: #2d2e32;
+    --vermilion: #ec7a52; --prussian: #7ea6e6; --ochre: #d9a64a; --accent: #7ea6e6; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131416; --panel: #1b1c1f; --ink: #ece9e2; --ink-2: #b9b5ad; --ink-3: #85827b; --line: #2d2e32;
+  --vermilion: #ec7a52; --prussian: #7ea6e6; --ochre: #d9a64a; --accent: #7ea6e6; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.55 var(--body); padding-inline: 16px; padding-block: 40px 80px; }
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 56px; }
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; font-weight: 600; }
+h1 { font-size: clamp(40px, 7vw, 68px); line-height: 1; letter-spacing: -0.015em; }
+h2 { font-size: 32px; line-height: 1.1; }
+h3 { font-size: 22px; line-height: 1.2; }
+p { margin: 0; }
+.eyebrow { font: 600 12px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.lede { font-size: 18px; color: var(--ink-2); max-width: 62ch; }
+.stack { display: grid; gap: 14px; }
+.muted { color: var(--ink-2); }
+.small { font-size: 14px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 12.5px/1 var(--mono); padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink-2); background: var(--panel); }
+
+/* animatic */
+.animatic { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); min-width: 0; gap: 40px; align-items: center; }
+@media (max-width: 820px) { .animatic { grid-template-columns: minmax(0, 1fr); justify-items: center; } }
+.phone { position: relative; width: min(360px, 100%); aspect-ratio: 9 / 16; border-radius: 28px; overflow: hidden; background: #ece9e1;
+  box-shadow: 0 0 0 10px var(--ink), 0 24px 60px rgb(0 0 0 / 0.22); }
+.phone img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.18s linear; }
+.phone img.on { opacity: 1; }
+.phone .safe { position: absolute; left: 0; right: 0; bottom: 0; height: 20%; background: repeating-linear-gradient(135deg, rgb(0 0 0 / 0.05) 0 6px, transparent 6px 12px); border-top: 1px dashed rgb(0 0 0 / 0.25); display: none; }
+.phone .safe span { position: absolute; right: 10px; top: 6px; font: 600 10px var(--mono); color: rgb(0 0 0 / 0.55); letter-spacing: 0.06em; text-transform: uppercase; }
+.phone.show-safe .safe { display: block; }
+.controls { display: grid; gap: 18px; min-width: 0; width: 100%; }
+.now { display: grid; gap: 6px; min-height: 120px; }
+.now .num { font: 600 13px var(--mono); color: var(--ink-3); }
+.now .words { font-family: var(--display); font-size: clamp(30px, 4.4vw, 46px); line-height: 1.08; font-weight: 600; }
+.now .cue { color: var(--ink-2); font-size: 15px; }
+.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible, .seg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.play { display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 22px 0 18px; border-radius: 999px; border: 0; background: var(--ink); color: var(--bg); font-weight: 700; }
+.time { font: 600 15px var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.toggle { display: inline-flex; gap: 8px; align-items: center; font-size: 14px; color: var(--ink-2); cursor: pointer; }
+.toggle input { accent-color: var(--accent); }
+.timeline { position: relative; height: 92px; user-select: none; touch-action: none; cursor: pointer; }
+.segs { position: absolute; left: 0; right: 0; top: 22px; height: 44px; display: flex; gap: 2px; }
+.seg { position: relative; height: 100%; border-radius: 6px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; min-width: 0; }
+.seg b { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); font: 600 11px var(--mono); color: var(--ink-3); white-space: nowrap; }
+.seg.active { border-color: var(--ink); background: color-mix(in srgb, var(--vermilion) 14%, var(--panel)); }
+.seg.active b { color: var(--ink); }
+.beats { position: absolute; left: 0; right: 0; top: 70px; height: 8px; }
+.beats i { position: absolute; top: 0; width: 1px; height: 6px; background: var(--ink-3); opacity: 0.45; }
+.beats i.bar { height: 8px; opacity: 0.9; }
+.cues { position: absolute; left: 0; right: 0; top: 0; height: 20px; }
+.cues span { position: absolute; transform: translateX(-50%); font: 600 10.5px var(--mono); color: var(--vermilion); white-space: nowrap; }
+.cues span::after { content: ""; position: absolute; left: 50%; top: 16px; width: 1px; height: 52px; background: var(--vermilion); opacity: 0.5; }
+.head { position: absolute; top: 14px; width: 2px; height: 64px; background: var(--ink); left: 0; pointer-events: none; }
+.wave { position: absolute; left: 0; right: 0; top: 80px; height: 12px; opacity: 0.6; }
+
+/* slides */
+.slides { display: grid; gap: 0; border-top: 1px solid var(--line); }
+.slide { display: grid; grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1fr); gap: 28px; padding-block: 26px; border-bottom: 1px solid var(--line); align-items: start; cursor: pointer; }
+.slide:hover .thumb { box-shadow: 0 0 0 2px var(--ink); }
+.slide.active .thumb { box-shadow: 0 0 0 3px var(--vermilion); }
+@media (max-width: 820px) { .slide { grid-template-columns: 110px minmax(0, 1fr); } .slide .music { grid-column: 2; } }
+.thumb { width: 100%; aspect-ratio: 9 / 16; object-fit: cover; border-radius: 10px; display: block; background: #ece9e1; }
+.slide .meta { display: grid; gap: 8px; min-width: 0; }
+.tc { font: 600 13px var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.slide .words { font-family: var(--display); font-size: 30px; line-height: 1.1; font-weight: 600; }
+.slide .words.none { color: var(--ink-3); font-style: italic; font-weight: 400; font-size: 22px; }
+.slide .pic { color: var(--ink-2); }
+.label { font: 600 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 6px; }
+.music p { color: var(--ink-2); font-size: 15px; }
+
+.script { font-family: var(--display); font-size: clamp(22px, 3vw, 30px); line-height: 1.35; max-width: 40ch; }
+.script span { white-space: nowrap; }
+.script .sep { color: var(--vermilion); padding-inline: 6px; }
+.cut { display: flex; flex-wrap: wrap; gap: 8px; }
+.cut s { font-size: 15px; color: var(--ink-3); padding: 6px 10px; border: 1px dashed var(--line); border-radius: 8px; }
+.decide { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 12px; align-content: start; }
+.opt { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 15px; }
+.opt .k { font: 600 12px var(--mono); color: var(--ink-3); padding-top: 3px; }
+.opt .pick { font-weight: 600; }
+.ask { background: var(--ink); color: var(--bg); border-radius: 14px; padding: 28px; display: grid; gap: 12px; }
+.ask h2 { color: var(--bg); }
+.ask p { color: color-mix(in srgb, var(--bg) 80%, transparent); max-width: 64ch; }
+</style>
+
+<div class="wrap">
+  <header class="stack">
+    <div class="eyebrow">Signal &amp; Noise · vertical trailer · pitch 1</div>
+    <h1>Storyboard</h1>
+    <p class="lede">Nine slides, about 20 seconds, cut to an original piano score at 120 BPM. Press play to watch the stills step through with the music. The finished cut moves; the notes under each slide describe how.</p>
+    <div class="chips"><span class="chip">1080 × 1920</span><span class="chip">20.5 s</span><span class="chip">120 BPM · a cut on every beat</span><span class="chip">8 lines of text</span><span class="chip">score: synthesised piano, made for this</span></div>
+  </header>
+
+  <section class="animatic" aria-label="Animatic">
+    <div class="phone" id="phone"><div class="safe"><span>X buttons</span></div></div>
+    <div class="controls">
+      <div class="now" aria-live="polite">
+        <span class="num" id="now-num"></span>
+        <span class="words" id="now-words"></span>
+        <span class="cue" id="now-cue"></span>
+      </div>
+      <div class="row">
+        <button type="button" class="play" id="play" aria-label="Play animatic"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" id="play-icon"><path d="M7 4.5v15l12-7.5z"></path></svg><span id="play-label">Play with music</span></button>
+        <span class="time" id="time">0:00.0 / 0:20.5</span>
+        <label class="toggle"><input type="checkbox" id="safe"> Show X's button area</label>
+      </div>
+      <div class="timeline" id="timeline" role="slider" tabindex="0" aria-label="Timeline" aria-valuemin="0" aria-valuemax="20.5" aria-valuenow="0">
+        <div class="cues" id="cues"></div>
+        <div class="segs" id="segs"></div>
+        <div class="beats" id="beats"></div>
+        <div class="head" id="head"></div>
+      </div>
+      <p class="small muted">Red marks are the music hits. Every cut sits on a beat; ticks are beats, taller ticks are bar lines.</p>
+    </div>
+  </section>
+
+  <section class="stack" aria-labelledby="h-slides">
+    <h2 id="h-slides">The slides</h2>
+    <div class="slides" id="slides"></div>
+  </section>
+
+  <section class="stack" aria-labelledby="h-script">
+    <h2 id="h-script">Every word on screen</h2>
+    <p class="script" id="script"></p>
+  </section>
+
+  <section class="stack" aria-labelledby="h-cut">
+    <h2 id="h-cut">Cut from the first version</h2>
+    <p class="muted">The first cut read like an article: a label over every section, full sentences, axis captions, two statistics. These go.</p>
+    <div class="cut">
+      <s>HOW JEV READS 170 TEST POSTS</s><s>Every post is read before it reaches you.</s><s>Most of your feed is signal.</s>
+      <s>Axis labels and percentages</s><s>~80 ms a post</s><s>21 of 21</s><s>YOU DECIDE WHAT'S NOISE</s>
+    </div>
+  </section>
+
+  <section class="stack" aria-labelledby="h-decide">
+    <h2 id="h-decide">Still to decide</h2>
+    <div class="decide">
+      <div class="card">
+        <h3>The music</h3>
+        <p class="small muted">The score on this page is a piano I built in code: three slightly detuned strings per note, felt hammers, sustain pedal, a small room. It follows the cuts, so it moves when the slides move.</p>
+        <div class="opt"><span class="k">A</span><span class="pick">Keep this piano score (what you're hearing)</span><span class="k">B</span><span>Give me a track you own and I'll cut to it</span><span class="k">C</span><span>Generate something fuller with a music model on Modal</span></div>
+      </div>
+      <div class="card">
+        <h3>The line under the title</h3>
+        <div class="opt"><span class="k">A</span><span class="pick">For X. Runs on Jev.</span><span class="k">B</span><span>A Chrome extension for X.</span><span class="k">C</span><span>Nothing under it</span></div>
+      </div>
+      <div class="card">
+        <h3>Slides 2 to 4</h3>
+        <div class="opt"><span class="k">A</span><span class="pick">Not this. / Not this. / Not this.</span><span class="k">B</span><span>Not this. / Not this. / Not this either.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="ask" aria-labelledby="h-ask">
+    <div class="eyebrow" style="color:inherit;opacity:.7">Your call</div>
+    <h2 id="h-ask">Tell me what to change, and I'll redo it before rendering</h2>
+    <p>Words, order, pacing, music, anything. Once the board is right I render the vertical cut with the motion described above and the score mixed in.</p>
+  </section>
+</div>
+
+<audio id="audio" src="score.mp3" preload="auto"></audio>
+
+<script>
+const BPM = 120, LEN = 20.5;
+const SLIDES = [
+  { n: 1, a: 0, b: 2, img: 'board/01.jpg', words: '', pic: 'A feed scrolls past fast, full screen, all made-up posts.', music: 'Low B and a quiet eighth-note pulse. Room tone.' },
+  { n: 2, a: 2, b: 3.5, img: 'board/02.jpg', words: 'Not this.', pic: 'The scroll stops on a political rage-bait post. A vermilion wash floods it.', music: 'Hit: low G octave plus a G major 7 chord.' },
+  { n: 3, a: 3.5, b: 5, img: 'board/03.jpg', words: 'Not this.', pic: 'Hard cut to a "100x by Friday" coin post. Same wash.', music: 'Hit, a step up: A.' },
+  { n: 4, a: 5, b: 6.5, img: 'board/04.jpg', words: 'Not this.', pic: 'Hard cut to "like if you agree, reply with your city". Same wash.', music: 'Hit: F sharp minor.' },
+  { n: 5, a: 6.5, b: 8.5, img: 'board/05.jpg', words: 'Gone before you get there.', pic: 'Back in the feed. The three posts snap shut into thin "Hidden" bars; the good posts close up around them.', music: 'A soft falling run that lands on D as the bars close.' },
+  { n: 6, a: 8.5, b: 11, img: 'board/06.jpg', words: "Tap what you're done with.", pic: 'Bubbles drop in on the beat. Three get tapped and fill with paint, one per beat.', music: 'A plucked high note for every bubble; the three taps are louder.' },
+  { n: 7, a: 11, b: 13, img: 'board/07.jpg', words: 'Or just type it.', pic: 'A cursor types "Spoilers for Severance". The pill fills blue.', music: 'Light, fast high ticks while it types, then a chord as it fills.' },
+  { n: 8, a: 13, b: 16, img: 'board/08.jpg', words: '0 of 95 good posts hidden.', pic: 'Ordinary posts (blue) pile up on the left, noise (vermilion) on the right. The ink line slams down between them on the downbeat. Small print: test of 170 posts, three default mutes.', music: 'Rising arpeggio, then the big chord on 14.0 for the slam, swelling to a hard stop at 16.0.' },
+  { n: 9, a: 16, b: 20.5, img: 'board/09.jpg', words: 'Signal & Noise', sub: 'For X. Runs on Jev.', pic: 'Silence for a breath. Washes bloom behind "Signal" and "Noise".', music: 'The music stops, then one soft open chord rings under the title.' },
+];
+const CUES = [[2, 'hit'], [3.5, 'hit'], [5, 'hit'], [7.5, 'land'], [14, 'slam'], [16, 'stop']];
+
+const $ = (id) => document.getElementById(id);
+const audio = $('audio');
+const fmt = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`;
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// phone stills
+const imgs = SLIDES.map((s) => { const i = new Image(); i.src = s.img; i.alt = `Slide ${s.n}: ${s.words || 'cold open'}`; $('phone').append(i); return i; });
+
+// timeline
+$('segs').innerHTML = SLIDES.map((s) => `<div class="seg" data-n="${s.n}" style="flex:${s.b - s.a}"><b>${s.n}</b></div>`).join('');
+$('cues').innerHTML = CUES.map(([t, l]) => `<span style="left:${(t / LEN) * 100}%">${l}</span>`).join('');
+let beats = '';
+for (let t = 0; t <= LEN + 1e-6; t += 60 / BPM) beats += `<i class="${Math.abs(t / 2 - Math.round(t / 2)) < 1e-6 ? 'bar' : ''}" style="left:${(t / LEN) * 100}%"></i>`;
+$('beats').innerHTML = beats;
+
+// slide list + script
+$('slides').innerHTML = SLIDES.map((s) => `
+  <article class="slide" data-n="${s.n}" tabindex="0" aria-label="Slide ${s.n}">
+    <img class="thumb" src="${s.img}" alt="" loading="lazy">
+    <div class="meta">
+      <span class="tc">${s.n} · ${fmt(s.a)} to ${fmt(s.b)}</span>
+      <span class="words ${s.words ? '' : 'none'}">${s.words ? esc(s.words) : 'No text'}</span>
+      ${s.sub ? `<span class="muted" style="font-family:var(--display);font-style:italic;font-size:20px">${esc(s.sub)}</span>` : ''}
+      <p class="pic">${esc(s.pic)}</p>
+    </div>
+    <div class="music"><div class="label">Music</div><p>${esc(s.music)}</p></div>
+  </article>`).join('');
+$('script').innerHTML = SLIDES.filter((s) => s.words).map((s) => `<span>${esc(s.words)}</span>`).join(' <span class="sep">/</span> ');
+
+function slideAt(t) { return SLIDES.find((s) => t >= s.a && t < s.b) || SLIDES[SLIDES.length - 1]; }
+let shown = null;
+function render(t) {
+  const s = slideAt(t);
+  $('head').style.left = `${(t / LEN) * 100}%`;
+  $('time').textContent = `${fmt(t)} / ${fmt(LEN)}`;
+  $('timeline').setAttribute('aria-valuenow', t.toFixed(1));
+  if (shown !== s.n) {
+    shown = s.n;
+    imgs.forEach((im, i) => im.classList.toggle('on', i === s.n - 1));
+    document.querySelectorAll('.seg').forEach((el) => el.classList.toggle('active', +el.dataset.n === s.n));
+    document.querySelectorAll('.slide').forEach((el) => el.classList.toggle('active', +el.dataset.n === s.n));
+    $('now-num').textContent = `Slide ${s.n} · ${fmt(s.a)}`;
+    $('now-words').textContent = s.words || 'No text';
+    $('now-cue').textContent = s.pic;
+  }
+}
+function seek(t) { audio.currentTime = Math.max(0, Math.min(LEN - 0.01, t)); render(audio.currentTime); }
+
+let raf = 0;
+function tick() { render(audio.currentTime); if (!audio.paused) raf = requestAnimationFrame(tick); }
+function setPlaying(on) {
+  $('play-label').textContent = on ? 'Pause' : 'Play with music';
+  $('play').setAttribute('aria-label', on ? 'Pause animatic' : 'Play animatic');
+  $('play-icon').innerHTML = on ? '<path d="M6 4.5h4v15H6zM14 4.5h4v15h-4z"></path>' : '<path d="M7 4.5v15l12-7.5z"></path>';
+}
+$('play').addEventListener('click', async () => {
+  if (audio.paused) {
+    if (audio.currentTime >= LEN - 0.05) audio.currentTime = 0;
+    try { await audio.play(); } catch { $('now-cue').textContent = "The browser blocked playback. Click Play again."; return; }
+    setPlaying(true); cancelAnimationFrame(raf); tick();
+  } else { audio.pause(); }
+});
+audio.addEventListener('pause', () => setPlaying(false));
+audio.addEventListener('ended', () => { setPlaying(false); render(LEN - 0.01); });
+
+// scrub
+const tl = $('timeline');
+const toT = (ev) => { const r = tl.getBoundingClientRect(); return ((ev.clientX - r.left) / r.width) * LEN; };
+let dragging = false;
+tl.addEventListener('pointerdown', (ev) => { dragging = true; tl.setPointerCapture(ev.pointerId); seek(toT(ev)); });
+tl.addEventListener('pointermove', (ev) => { if (dragging) seek(toT(ev)); });
+tl.addEventListener('pointerup', () => { dragging = false; });
+tl.addEventListener('keydown', (ev) => {
+  if (ev.key === 'ArrowRight') { seek(audio.currentTime + 0.5); ev.preventDefault(); }
+  if (ev.key === 'ArrowLeft') { seek(audio.currentTime - 0.5); ev.preventDefault(); }
+  if (ev.key === ' ') { $('play').click(); ev.preventDefault(); }
+});
+$('slides').addEventListener('click', (ev) => { const el = ev.target.closest('.slide'); if (el) { seek(SLIDES[el.dataset.n - 1].a + 0.01); $('phone').scrollIntoView({ behavior: 'smooth', block: 'center' }); } });
+$('slides').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') ev.target.closest('.slide')?.click(); });
+$('safe').addEventListener('change', (ev) => $('phone').classList.toggle('show-safe', ev.target.checked));
+
+render(0);
+</script>
