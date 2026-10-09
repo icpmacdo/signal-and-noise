@@ -52,6 +52,12 @@ npm run e2e:routes  # no keys: same fake timeline, with stub answers for the loc
 npm run zip     # signal-and-noise.zip for the Chrome Web Store
 ```
 
+## Experimental: the whole screen
+
+`os/` is a macOS menu-bar app that applies the same idea to everything on screen. It judges pixels
+with OpenAI's Decisions API and blurs the regions that match; hover to peek, click to show. See
+[os/README.md](os/README.md).
+
 ## Decision pages
 
 `decisions/*.src.html` build (`node decisions/build.mjs`) into interactive pages that use synthetic
