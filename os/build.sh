@@ -1,7 +1,9 @@
 #!/bin/sh
 # Build "Signal & Noise OS.app" into os/build/. A real .app bundle is needed so macOS can grant it
 # Screen Recording permission (a bare binary run from a terminal would borrow the terminal's).
-# Ad-hoc signed: after a rebuild macOS may ask for the permission again.
+# Signed with your Apple Development identity when there is one, so the permission survives
+# rebuilds (macOS ties it to the signature; an ad-hoc signature changes every build). Override
+# with SIGN_ID=<identity hash>, or SIGN_ID=- for ad-hoc.
 set -e
 cd "$(dirname "$0")"
 swift build -c release --product SignalNoiseOS
@@ -23,5 +25,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>LSUIElement</key><true/>
 </dict></plist>
 PLIST
-codesign --force --sign - "$APP"
+SIGN_ID="${SIGN_ID:-$(security find-identity -v -p codesigning | grep 'Apple Development' | grep -v REVOKED | head -1 | awk '{print $2}')}"
+codesign --force --sign "${SIGN_ID:--}" "$APP"
+echo "signed with: ${SIGN_ID:--} ($( [ "${SIGN_ID:--}" = - ] && echo ad-hoc || echo identity))"
 echo "built: $(pwd)/$APP"

@@ -125,6 +125,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   }
 
   private func setStatus(_ s: String) {
+    // Log pauses and failures as they start, so a silent stall shows up in the log; the
+    // "Watching · n hidden" count changes too often to log.
+    if s != status, !s.hasPrefix("Watching") { Log.write("status: \(s)") }
+    if s.hasPrefix("Watching"), !status.hasPrefix("Watching") { Log.write("status: watching") }
     status = s
     statusItem.button?.appearsDisabled = paused
   }

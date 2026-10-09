@@ -19,7 +19,8 @@ open "build/Signal & Noise OS.app"
 ```
 
 1. macOS asks for **Screen Recording** permission (System Settings › Privacy & Security). Allow it
-   and reopen the app. With ad-hoc signing, macOS may ask again after each rebuild.
+   and reopen the app. `build.sh` signs with your Apple Development identity if you have one,
+   so the permission survives rebuilds; with ad-hoc signing macOS asks again after each rebuild.
 2. Menu bar icon → **Set OpenAI or OpenRouter key…**. The key is kept in the login keychain;
    `OPENAI_API_KEY` or `~/.config/openai/api_key` also work. An OpenRouter key (`sk-or-…`)
    reaches the same model at `openrouter.ai/api/alpha/decisions`
