@@ -2,7 +2,7 @@
 // caches verdicts per tweet, and keeps a tally for the popup. Any failure answers "show" so the
 // timeline is never held hostage by the API.
 import {
-  MAX_BATCH, normaliseSettings, requestFor, verdictsFrom, isAllowed, settingsFingerprint,
+  MAX_BATCH, MODEL, normaliseSettings, requestFor, verdictsFrom, isAllowed, settingsFingerprint,
 } from './wire.js';
 
 const ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
@@ -26,7 +26,7 @@ async function askJev(tweets, s) {
       method: 'POST',
       signal: ctl.signal,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.apiKey}` },
-      body: JSON.stringify({ ...req.body, model: 'jev-latest' }),
+      body: JSON.stringify({ ...req.body, model: MODEL }),
     });
     const text = await r.text();
     if (!r.ok) throw new Error(`Jev ${r.status}: ${text.slice(0, 200)}`);

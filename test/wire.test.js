@@ -15,14 +15,13 @@ test('settings are cleaned up', () => {
   assert.equal(normaliseSettings().enabled, true);
 });
 
-test('one choice question per tweet, keep plus one label per mute', () => {
-  const req = requestFor([{ id: '111', author: '@a', text: 'hi' }, { id: '222', author: '@b', text: 'yo', quoted: 'q' }], s);
-  assert.deepEqual(Object.keys(req.body.questions), ['t0', 't1']);
-  assert.deepEqual(req.ids, { t0: '111', t1: '222' });
+test('one tweet per request, keep plus one label per mute', () => {
+  const req = requestFor([{ id: '222', author: '@b', text: 'yo', quoted: 'q' }, { id: '333', text: 'ignored' }], s);
+  assert.deepEqual(Object.keys(req.body.questions), ['t0'], 'never batch: neighbours change verdicts');
+  assert.deepEqual(req.ids, { t0: '222' });
   assert.deepEqual(Object.keys(req.body.questions.t0.criteria), ['keep', 'm0', 'm1']);
-  assert.equal(req.body.questions.t1.criteria.m1, 'crypto shilling');
-  assert.equal(req.body.state.tweets.t1.quoting, 'q');
-  assert.equal(req.body.state.tweets.t0.quoting, undefined);
+  assert.equal(req.body.questions.t0.criteria.m1, 'crypto shilling');
+  assert.equal(req.body.state.tweets.t0.quoting, 'q');
 });
 
 test('no request without mutes or tweets, and batches are capped', () => {

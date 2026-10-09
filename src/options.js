@@ -1,4 +1,4 @@
-import { normaliseSettings, requestFor, verdictsFrom } from './wire.js';
+import { normaliseSettings, requestFor, verdictsFrom, MODEL } from './wire.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -51,7 +51,7 @@ $('test').addEventListener('click', async () => {
     const r = await fetch('https://api.typesafe.ai/v1/systemone', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.apiKey}` },
-      body: JSON.stringify({ ...req.body, model: 'jev-latest' }),
+      body: JSON.stringify({ ...req.body, model: MODEL }),
     });
     const ms = Math.round(performance.now() - started);
     if (!r.ok) { out.textContent = `Key rejected (${r.status}). Check it and try again.`; return; }

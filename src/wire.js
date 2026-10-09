@@ -1,11 +1,14 @@
 // What we ask Jev about a batch of tweets, and how its answers become hide/show verdicts. Pure:
 // no network, no chrome.*, so it runs under `node --test` and the extension asks the same questions.
 //
-// One request carries several tweets. Each tweet gets its own `choice` question whose labels are
-// "keep" plus one label per thing the reader muted; Jev returns a probability for each, and we
-// hide only when "keep" is unlikely enough for the reader's strictness.
+// One request per tweet: in a shared request Jev compares tweets with each other, and 11 of 40
+// borderline tweets flipped verdict depending only on their neighbours (eval/synthetic). The tweet
+// gets one `choice` question whose labels are "keep" plus one per mute; we hide only when "keep"
+// is unlikely enough for the reader's strictness.
 
-export const MAX_BATCH = 10;
+export const MAX_BATCH = 1;
+// Pinned so a model update can't silently move every threshold; re-run the eval before bumping.
+export const MODEL = 'jev-1.13.0';
 
 export const DEFAULT_SETTINGS = {
   enabled: true,
