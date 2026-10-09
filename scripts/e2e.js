@@ -23,6 +23,11 @@ const TWEETS = [
   { id: '1005', handle: 'growthguru', text: "Like if you agree, ignore if you're a hater 🙏 Who's still up? Reply with your city!", expect: 'hide' },
   { id: '1006', handle: 'policywonk', text: 'New CBO report on the infrastructure bill: cost estimates revised down 4%. Table on page 12.', expect: 'show' },
 ];
+// A quote card carries its own User-Name box, as on x.com.
+const QUOTES = [
+  { id: '1010', handle: 'tomek_k', text: 'aged like milk, I know...', qhandle: 'tomek_k', qtext: "I'm quite unhappy with much of what a big AI lab does. I am very happy that I'm allowed to say that.", expect: 'show' },
+  { id: '1011', handle: 'snarky_sam', text: 'aged like milk lmao. imagine posting this with a straight face 🤡', qhandle: 'tomek_k', qtext: "I'm quite unhappy with much of what a big AI lab does. I am very happy that I'm allowed to say that.", expect: 'hide' },
+];
 const LATE = [ // rendered after load, like X's lazy timeline
   { id: '1007', handle: 'airdropking', text: 'FREE AIRDROP 🎁 Connect your wallet at the link in bio to claim 5000 tokens before midnight!!', expect: 'hide' },
   { id: '1008', handle: 'birdwatcher', text: 'A pair of kestrels nesting on the church tower again this spring.', expect: 'show' },
@@ -34,6 +39,14 @@ const cell = (t) => `<div data-testid="cellInnerDiv"><div><article data-testid="
   <div data-testid="tweetText">${t.text}</div>
 </article></div></div>`;
 
+const quoteCell = (t) => `<div data-testid="cellInnerDiv"><div><article data-testid="tweet" role="article">
+  <div data-testid="User-Name"><span>${t.handle}</span><span>@${t.handle}</span></div>
+  <a href="/${t.handle}/status/${t.id}"><time datetime="2026-10-08T12:00:00Z">1h</time></a>
+  <div data-testid="tweetText">${t.text}</div>
+  <div role="link"><div data-testid="User-Name"><span>${t.qhandle}</span><span>@${t.qhandle}</span></div>
+  <div data-testid="tweetText">${t.qtext}</div></div>
+</article></div></div>`;
+
 const PAGE = `<!doctype html><html><head><meta charset="utf-8"><title>Home / X</title>
 <style>body{margin:0;background:#000;color:#e7e9ea;font:15px -apple-system,sans-serif}
 main{width:600px;margin:0 auto;border-left:1px solid #2f3336;border-right:1px solid #2f3336}
@@ -41,7 +54,7 @@ article{padding:12px 16px;border-bottom:1px solid #2f3336}
 [data-testid=User-Name]{font-weight:700;margin-bottom:4px}[data-testid=User-Name] span+span{color:#71767b;font-weight:400;margin-left:6px}
 a{color:#71767b;font-size:13px}</style></head>
 <body><main><div aria-label="Timeline" id="tl">${TWEETS.map(cell).join('')}</div></main>
-<script>window.__late = ${JSON.stringify(LATE.map(cell))};</script></body></html>`;
+<script>window.__late = ${JSON.stringify(LATE.map(cell))}; window.__quotes = ${JSON.stringify(QUOTES.map(quoteCell))};</script></body></html>`;
 
 const fails = [];
 const check = (ok, msg) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`); if (!ok) fails.push(msg); };
@@ -105,6 +118,25 @@ try {
 
   visible = await bars();
   check(visible.length === 2, `a hide after a visible tweet gets its own bar (${visible.length} bars)`);
+
+  // 3b. Quote tweets: quoting yourself isn't a dunk; quote-dunking someone else is.
+  await worker.evaluate(async () => {
+    const { settings } = await chrome.storage.local.get('settings');
+    await chrome.storage.local.set({ settings: { ...settings, picked: [...settings.picked, 'dunk'] } });
+  });
+  await new Promise((r) => setTimeout(r, 1200));
+  await page.evaluate(() => { const tl = document.getElementById('tl'); for (const h of window.__quotes) tl.insertAdjacentHTML('beforeend', h); });
+  await page.waitForFunction(() => document.querySelectorAll('article[data-jm-id="1010"], article[data-jm-id="1011"]').length === 2
+    && document.querySelectorAll('article.jm-pending').length === 0, { timeout: 6000 });
+  st = await state();
+  for (const t of QUOTES) check((st[t.id]?.hidden ? 'hide' : 'show') === t.expect, `quote: @${t.handle} quoting @${t.qhandle} ${t.expect === 'hide' ? 'hidden as a dunk' : 'shown'}`);
+  await worker.evaluate(async () => {
+    const { settings } = await chrome.storage.local.get('settings');
+    await chrome.storage.local.set({ settings: { ...settings, picked: settings.picked.filter((x) => x !== 'dunk') } });
+  });
+  await page.evaluate(() => { document.querySelectorAll('article[data-jm-id="1010"], article[data-jm-id="1011"]').forEach((a) => a.closest('[data-testid=cellInnerDiv]').remove()); });
+  await new Promise((r) => setTimeout(r, 1500));
+  await page.waitForFunction(() => document.querySelectorAll('article.jm-pending').length === 0, { timeout: 6000 });
 
   // 4. Show on the grouped bar reveals the whole run, each with feedback chips.
   await page.click('.jm-bar:not(.jm-merged) .jm-show');

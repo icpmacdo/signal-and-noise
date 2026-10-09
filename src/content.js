@@ -31,10 +31,16 @@
     return `h${(h >>> 0).toString(36)}`;
   }
 
+  const handleIn = (box) => box && [...box.querySelectorAll('span')]
+    .map((s) => s.textContent.trim()).find((t) => /^@\w+$/.test(t));
+
   function read(article) {
-    const nameBox = article.querySelector('[data-testid="User-Name"]');
-    const handle = nameBox && [...nameBox.querySelectorAll('span')]
-      .map((s) => s.textContent.trim()).find((t) => /^@\w+$/.test(t));
+    // A quote tweet has a second User-Name box inside the quote card. Jev needs to know who wrote
+    // the quoted post: without it, quoting yourself ("aged like milk, I know...") reads as a dunk
+    // on someone else (P(keep) 0.47 -> 0.71 with the author shown).
+    const [nameBox, quotedBox] = article.querySelectorAll('[data-testid="User-Name"]');
+    const handle = handleIn(nameBox);
+    const quotedHandle = handleIn(quotedBox);
     const texts = [...article.querySelectorAll('[data-testid="tweetText"]')].map((n) => n.innerText.trim());
     const media = [...article.querySelectorAll('[data-testid="tweetPhoto"] img[alt]')]
       .map((i) => i.getAttribute('alt')).filter((a) => a && a !== 'Image');
@@ -44,7 +50,7 @@
     const t = {
       author: handle || nameBox?.innerText.split('\n')[0] || 'unknown',
       text: texts[0] || '',
-      quoted: texts[1] || '',
+      quoted: texts[1] ? (quotedHandle ? `${quotedHandle}: ${texts[1]}` : texts[1]) : '',
       media,
       context: promoted ? 'promoted post (ad)' : context || '',
     };
