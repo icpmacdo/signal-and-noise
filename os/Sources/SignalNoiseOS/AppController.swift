@@ -74,13 +74,14 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       }
       guard let content else { return }
       let excluded = content.applications.filter { $0.processID == getpid() || settings.neverApps.contains($0.bundleIdentifier) }
-      let judge = Judge(client: DecisionsClient(key: key, url: decisionsURL), bubbles: settings.bubbles,
-                        threshold: settings.threshold, mode: settings.mode)
+      let client = DecisionsClient(key: key, url: decisionsURL)
+      let judge = Judge(client: client, bubbles: settings.bubbles, threshold: settings.threshold, mode: settings.mode)
       let useSAM = settings.tighterShapes && (!falKey.isEmpty || samURL != SAMClient.defaultURL)
       let sam = useSAM ? SAMClient(key: falKey, url: samURL) : nil
       for display in content.displays {
         guard let worker = workers[display.displayID] else { continue }
         worker.sam = sam
+        worker.fineClient = settings.tighterShapes ? client : nil
         worker.bubbles = settings.bubbles
         let filter = SCContentFilter(display: display, excludingApplications: excluded, exceptingWindows: [])
         let config = SCStreamConfiguration()
@@ -192,9 +193,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       item(finding, "\(g.cols) × \(g.rows) cells") { c in c.settings.grid = g; c.changed() }.state = settings.grid == g ? .on : .off
     }
     finding.addItem(.separator())
-    let samTitle = falKey.isEmpty && samURL == SAMClient.defaultURL
-      ? "Tighter shapes with SAM (set a fal.ai key first)" : "Tighter shapes with SAM (fal.ai, $0.005 per mask)"
-    item(finding, samTitle) { c in c.settings.tighterShapes.toggle(); c.changed(keepCache: true) }.state = settings.tighterShapes ? .on : .off
+    let shapeTitle = falKey.isEmpty && samURL == SAMClient.defaultURL
+      ? "Tighter shapes (a zoomed second look)" : "Tighter shapes (SAM on fal.ai, $0.005 per mask)"
+    item(finding, shapeTitle) { c in c.settings.tighterShapes.toggle(); c.changed(keepCache: true) }.state = settings.tighterShapes ? .on : .off
     submenu(menu, "Finding regions", finding)
 
     menu.addItem(.separator())

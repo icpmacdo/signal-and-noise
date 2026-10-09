@@ -350,3 +350,44 @@ final class OpenRouterTests: XCTestCase {
     XCTAssertEqual(a["kind"]?.probabilities["ads"], 1)
   }
 }
+
+final class FineRefineTests: XCTestCase {
+  func testAreaAndFineGrid() {
+    let spec = GridSpec(cols: 4, rows: 2) // 100x100 cells on 400x200
+    let block = CellBlock(col0: 1, row0: 0, col1: 1, row1: 0)
+    let area = FineRefine.area(block, spec: spec, width: 400, height: 200, margin: 0.5)
+    XCTAssertEqual(area, CGRect(x: 50, y: 0, width: 200, height: 150))
+    XCTAssertEqual(FineRefine.fineSpec(area: area, spec: spec, width: 400, height: 200, sub: 3), GridSpec(cols: 6, rows: 5))
+  }
+
+  func testYesSubcellsBecomeImageRects() async {
+    StubProtocol.seen = []
+    // Say yes to subcells B2 and C2 only.
+    StubProtocol.handler = { body in
+      let names = (body["questions"] as! [[String: Any]]).map { $0["name"] as! String }
+      return ["answers": names.map { ["type": "predicate", "name": $0, "probability": ["B2", "C2"].contains($0) ? 0.9 : 0.1] }]
+    }
+    let config = URLSessionConfiguration.ephemeral
+    config.protocolClasses = [StubProtocol.self]
+    let client = DecisionsClient(key: "sk-test", session: URLSession(configuration: config))
+    let spec = GridSpec(cols: 4, rows: 2)
+    let r = await FineRefine.block(CellBlock(col0: 1, row0: 0, col1: 1, row1: 0), image: TestImages.stripes(width: 400, height: 200, period: 10),
+                                   spec: spec, matched: [Bubbles.common[0]], client: client)
+    XCTAssertTrue(r.errors.isEmpty, "\(r.errors)")
+    // Area x 50..250, y 0..150 cut 6x5: subcells are 33.3 x 30; B2..C2 is x 83..150, y 30..60.
+    XCTAssertEqual(r.rects.count, 1)
+    XCTAssertEqual(r.rects[0].minX, 50 + 200.0 / 6, accuracy: 1)
+    XCTAssertEqual(r.rects[0].maxX, 50 + 200.0 / 2, accuracy: 1)
+    XCTAssertEqual(r.rects[0].minY, 30, accuracy: 1)
+    XCTAssertEqual(r.rects[0].maxY, 60, accuracy: 1)
+    let q = (StubProtocol.seen[0]["questions"] as! [[String: Any]])[0]["instructions"] as! String
+    XCTAssertTrue(q.contains("advertisement"))
+  }
+
+  func testCoverage() {
+    let c = Coverage.score(masked: [CGRect(x: 0, y: 0, width: 100, height: 100)], truth: [CGRect(x: 50, y: 0, width: 100, height: 100)],
+                           width: 200, height: 100, step: 2)
+    XCTAssertEqual(Double(c.overlap) / Double(c.truthArea), 0.5, accuracy: 0.02)
+    XCTAssertEqual(Double(c.overlap) / Double(c.maskedArea), 0.5, accuracy: 0.02)
+  }
+}

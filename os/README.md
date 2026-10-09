@@ -52,7 +52,15 @@ cells, requests, seconds, what was hidden and any errors.
   - **Grid** (default): one image of the whole screen with a labelled grid (A1…H5), and one choice
     question per cell, 20 per request. It relies on the model pointing at labelled cells, and on
     real pages it did that well (see First results).
-- **Tighter shapes (SAM)**: when a new masked block appears, SAM 3 gets a crop of the block plus
+- **Tighter shapes (zoomed second look, default)**: the coarse 8×5 grid is good at noticing that
+  an ad is somewhere in a cell and bad at its edges (on a 6K display a cell is 376×338 points, so
+  cell masks covered browser tabs and headlines while the rest of the ad showed). So a new masked
+  block plus half a cell of margin is cropped at full resolution, a fine grid (3×3 per coarse
+  cell) is drawn on it, and the model answers "does this cell show any part of an ad?" for each
+  subcell. The mask is those subcells. Nothing is masked until that answer is back (about 0.6 s
+  more), so a coarse cell never flashes over the wrong thing. If the zoomed look finds nothing,
+  nothing is masked; if its calls fail, the whole block is.
+- **Tighter shapes (SAM, with a fal.ai key)**: instead of the zoomed look, SAM 3 gets a crop of the block plus
   half a cell of margin, with the matching bubble as a noun phrase ("advertisement", "meme
   image"; your own words for custom bubbles). Boxes it finds (score ≥ 0.35, not tiny, not the
   whole crop) cross-fade in to replace the block's grid mask. If it finds nothing or fails, the
@@ -82,6 +90,25 @@ answered. Each request is a few thousand input tokens at $0.10 per million, so r
 screen in grid mode. Six pages is a smoke test, not a benchmark: run `snos-eval` on your own
 screenshots to tune the strictness.
 
+### Tuning the zoomed look (2026-10-09)
+
+Four WSJ/NYT screenshots from a 6K display with the ads labelled by hand, plus two pages with no
+ads (`snos-eval` with `labels.json`). Recall is the share of ad area masked; precision is the
+share of masked area that is ad. The runs are noisy: the same settings vary by ±10 points.
+
+| | recall | precision |
+|---|---|---|
+| coarse cells only (threshold 0.6) | 46% | 28% |
+| + zoomed look, coarse threshold 0.6 | 55% | 61% |
+| + zoomed look, coarse threshold 0.5 (default) | 65–67% | 57–60% |
+| coarse threshold 0.4 | 58–72% | 41–69% |
+| subcells 4×4 instead of 3×3 | 33% | 30% |
+| coarse yes/no questions instead of a choice | 50–69% | 42–51% |
+| 14×8 coarse grid instead of 8×5 | worse; scattered cells | |
+
+What's left is mostly the coarse pass missing an ad entirely in some runs; the zoomed look can't
+mask what was never flagged.
+
 ## Privacy
 
 Whatever is on screen goes to OpenAI as JPEG crops: tiles of your screen, or the whole screen in
@@ -93,13 +120,16 @@ OpenAI offers zero data retention for eligible accounts only.
 ```sh
 swift run snos-eval ~/Desktop/shots                         # both modes, Ads + Memes, 8x5
 swift run snos-eval ~/Desktop/shots --mode tiles --grid 12x8 --bubbles ads,violence --custom "spiders"
-swift run snos-eval ~/Desktop/shots --mode tiles --sam              # plus SAM shapes (needs FAL_KEY)
+swift run snos-eval ~/Desktop/shots --mode grid --threshold 0.5      # zoomed second look (default)
+swift run snos-eval ~/Desktop/shots --mode grid --refine sam         # SAM shapes instead (needs FAL_KEY)
 ```
 
 This runs the app's judging over a folder of screenshots and writes `report.html` and
 `results.json` (to `<folder>/snos-report/` unless `--out` says otherwise). The report shows each
 screenshot per mode with the cells that would be masked; hover a cell for its scores. It also
-gives the median seconds per screen. With `--sam`, SAM's shapes are drawn as blue boxes. Use it to choose between tiles and grid, the grid size and
+gives the median seconds per screen. Refined shapes are drawn as blue boxes. With a `labels.json` in
+the folder (`{"shot.png": [[x, y, w, h], …]}` in image pixels, `[]` for a page with no ads) it
+scores recall and precision for coarse cells and refined shapes, and draws the labels in green. Use it to choose between tiles and grid, the grid size and
 the strictness before trusting the live overlay. `SNOS_DECISIONS_URL` points both the app and the
 eval at a stub server instead of OpenAI; `SNOS_SAM_URL` does the same for SAM.
 

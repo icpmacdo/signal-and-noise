@@ -1,6 +1,7 @@
 // One display: hashes each captured frame's cells, asks the tracker what changed, sends unseen
-// content to the model, and keeps mask panels for each merged block of masked cells: the block
-// itself at first, then SAM's tighter shapes if they come back.
+// content to the model, and keeps mask panels for each merged block of masked cells. With
+// tighter shapes on, a new block shows nothing until its shapes come back (a zoomed second look,
+// or SAM when a fal.ai key is set), so a coarse cell never briefly covers tabs or headlines.
 import AppKit
 import MaskCore
 
@@ -13,11 +14,14 @@ final class DisplayWorker {
   let tracker: Tracker
   private(set) var judging = false
   private var panels: [CellBlock: [MaskPanel]] = [:]
-  private var refined: Set<CellBlock> = []
+  /// Blocks waiting on their shapes.
+  private var refining: Set<CellBlock> = []
   private var lastImage: CGImage?
   private var generation = 0
   var onJudged: ((JudgeResult, Int, [String]) -> Void)?
-  /// Set for tighter shapes; `bubbles` maps a mask's reasons back to SAM noun phrases.
+  /// Tighter shapes: the zoomed second look uses `fineClient`; SAM is used instead when set.
+  /// `bubbles` maps a mask's reasons back to the bubbles that matched.
+  var fineClient: DecisionsClient?
   var sam: SAMClient?
   var bubbles: [Bubble] = []
 
@@ -72,22 +76,28 @@ final class DisplayWorker {
     tracker.reset(keepCache: keepCache)
     for p in panels.values.joined() { p.fadeOutAndClose() }
     panels.removeAll()
-    refined.removeAll()
+    refining.removeAll()
   }
 
+  private func currentBlocks() -> Set<CellBlock> { Set(Merge.blocks(Set(tracker.masked.keys), spec: spec)) }
+
   private func render() {
-    let blocks = Set(Merge.blocks(Set(tracker.masked.keys), spec: spec))
+    let blocks = currentBlocks()
     for (block, ps) in panels where !blocks.contains(block) {
       ps.forEach { $0.fadeOutAndClose() }
       panels.removeValue(forKey: block)
-      refined.remove(block)
     }
+    refining.formIntersection(blocks)
     for block in blocks {
       let label = labelFor(block)
       if let existing = panels[block] { existing.forEach { $0.setLabel(label) }; continue }
-      let rect = spec.rect(block, width: Int(frame.width), height: Int(frame.height))
-      panels[block] = [makePanel(rect, block: block, label: label)]
-      refine(block)
+      if refining.contains(block) { continue }
+      if fineClient != nil || sam != nil, let image = lastImage {
+        refining.insert(block)
+        refine(block, image: image)
+      } else {
+        panels[block] = [makePanel(spec.rect(block, width: Int(frame.width), height: Int(frame.height)), block: block, label: label)]
+      }
     }
   }
 
@@ -103,23 +113,37 @@ final class DisplayWorker {
     return panel
   }
 
-  /// Ask SAM for the shape of what's in a new block; swap the grid mask for those shapes if any
-  /// come back while the block is still masked.
-  private func refine(_ block: CellBlock) {
-    guard let sam, let image = lastImage else { return }
+  /// Find the shape of what's in a new block. Shapes found: mask those. Nothing found: the
+  /// zoomed look overrules the coarse one and nothing is masked. Every call failed: mask the
+  /// whole block, since the coarse pass did say hide.
+  private func refine(_ block: CellBlock, image: CGImage) {
     let reasons = Set(block.cells(spec).flatMap { tracker.masked[$0]?.reasons ?? [] })
-    let prompts = bubbles.filter { reasons.contains($0.label) }.compactMap(\.segment)
-    guard !prompts.isEmpty else { return }
+    let matched = bubbles.filter { reasons.contains($0.label) }
+    let prompts = matched.compactMap(\.segment)
     let gen = generation
+    let first = spec.label(block.cells(spec)[0])
     Task { @MainActor in
-      let r = await Refine.block(block, image: image, spec: spec, prompts: prompts, client: sam)
-      Log.write("display \(displayID) SAM \(prompts) on \(spec.label(block.cells(spec)[0]))…: \(r.rects.count) shapes\(r.errors.isEmpty ? "" : " errors: \(r.errors.joined(separator: " | ").prefix(300))")")
-      guard gen == generation, let old = panels[block], !refined.contains(block), !r.rects.isEmpty else { return }
-      refined.insert(block)
+      var rects: [CGRect] = [], errors: [String] = [], how = ""
+      let t0 = Date()
+      if let sam, !prompts.isEmpty {
+        let r = await Refine.block(block, image: image, spec: spec, prompts: prompts, client: sam)
+        (rects, errors, how) = (r.rects, r.errors, "SAM")
+      } else if let fineClient {
+        let r = await FineRefine.block(block, image: image, spec: spec, matched: matched, client: fineClient)
+        (rects, errors, how) = (r.rects, r.errors, "zoom")
+      }
+      Log.write(String(format: "display %u %@ %@…: %d shapes, %.2f s%@", displayID, how, first, rects.count, Date().timeIntervalSince(t0),
+                       errors.isEmpty ? "" : " errors: \(errors.joined(separator: " | ").prefix(300))"))
+      guard gen == generation, refining.remove(block) != nil, currentBlocks().contains(block) else { return }
       let label = labelFor(block)
-      // Captured pixels are display points, so image rects are local screen rects.
-      panels[block] = r.rects.map { makePanel($0, block: block, label: label) }
-      old.forEach { $0.fadeOutAndClose(0.3) }
+      if !rects.isEmpty {
+        // Captured pixels are display points, so image rects are local screen rects.
+        panels[block] = rects.map { makePanel($0, block: block, label: label) }
+      } else if !errors.isEmpty {
+        panels[block] = [makePanel(spec.rect(block, width: Int(frame.width), height: Int(frame.height)), block: block, label: label)]
+      } else {
+        panels[block] = [] // refined away; remembered so it isn't asked again
+      }
     }
   }
 

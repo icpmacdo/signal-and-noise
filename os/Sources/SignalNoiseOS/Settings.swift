@@ -6,7 +6,9 @@ struct Settings: Codable, Equatable {
   var enabled = true
   var picked = Bubbles.defaultPicked
   var customs: [String] = []
-  var threshold = 0.6
+  /// The coarse pass only proposes; the zoomed second look decides the shape (and can find
+  /// nothing), so the coarse bar sits lower than it would alone.
+  var threshold = 0.5
   /// Grid won on real pages (2026-10-09, six sites via OpenRouter): ~0.7 s per screen vs ~1.8 s,
   /// 2 requests vs 40, and it covered more of each ad.
   var mode = Mode.grid
@@ -14,7 +16,7 @@ struct Settings: Codable, Equatable {
   /// screenshots from a 6K display it caught the banner and video ads, where 14x8 caught
   /// scattered pieces of them (2026-10-09).
   var grid: GridSpec? = GridSpec(cols: 8, rows: 5)
-  /// Reshape masks with SAM 3 on fal.ai when a fal key is set.
+  /// Reshape masks with a zoomed second look (or SAM 3 on fal.ai when a fal key is set).
   var tighterShapes = true
   /// Apps whose windows are never captured, and while one is in front nothing runs at all.
   var neverApps = [
