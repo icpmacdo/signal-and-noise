@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import build as B  # noqa: E402
 
 B.W, B.H = 1080, 1920
-W, H, FPS, LEN = 1080, 1920, 30, 20.5
+W, H, FPS, LEN = 1080, 1920, 30, 18.5
 OUT = B.OUT
 T = B.TWEETS
 MX = 90
@@ -222,26 +222,25 @@ def slide_proof(c, t):
 # ------------------------------------------------------------------ slide 9: title
 _f = B.ny(230, 760)
 SIG, NOI = B.text_layer("Signal", _f), B.text_layer("& Noise", _f)
-Y1, Y2 = 640, 900
+Y1, Y2 = 700, 960
 W1 = B.Wash(B.blob_mask(SIG.w + 60, 200), (W - SIG.w) / 2 - 30, Y1 + 50, B.PRUSSIAN, 71, strength=0.4, origin=(0, 100), warp=14)
 W2 = B.Wash(B.blob_mask(NOI.w + 60, 200), (W - NOI.w) / 2 - 30, Y2 + 50, B.VERMILION, 72, strength=0.46, origin=(NOI.w + 60, 100), warp=14)
-SUB = B.text_layer("For X. Runs on Jev.", B.ny(52, 450, italic=True))
 
 
 def slide_title(c, t):
-    W1.draw(c, prog(t, 16.5, 17.5))
-    W2.draw(c, prog(t, 16.85, 17.85))
-    k = eo(prog(t, 16.55, 17.1))
-    SIG.draw(c, (W - SIG.w) / 2, Y1 + 20 * (1 - k), k)
-    k2 = eo(prog(t, 16.75, 17.3))
-    NOI.draw(c, (W - NOI.w) / 2, Y2 + 20 * (1 - k2), k2)
-    SUB.draw(c, (W - SUB.w) / 2, 1230, eo(prog(t, 17.6, 18.1)))
+    # lands on the big chord at 14.0
+    W1.draw(c, prog(t, 14.0, 14.9))
+    W2.draw(c, prog(t, 14.25, 15.15))
+    k = eo(prog(t, 14.0, 14.18))
+    SIG.draw(c, (W - SIG.w) / 2, Y1 + 30 * (1 - k), k)
+    k2 = eo(prog(t, 14.08, 14.26))
+    NOI.draw(c, (W - NOI.w) / 2, Y2 + 30 * (1 - k2), k2)
 
 
 # ------------------------------------------------------------------ timeline (hard cuts on the beat)
 CUTS = [(0, 2.0, slide1), (2.0, 3.5, lambda c, t: slide_hit(c, t, 0)), (3.5, 5.0, lambda c, t: slide_hit(c, t, 1)),
         (5.0, 6.5, lambda c, t: slide_hit(c, t, 2)), (6.5, 8.5, slide_fold), (8.5, 11.0, slide_bubbles),
-        (11.0, 13.0, slide_type), (13.0, 16.0, slide_proof), (16.0, 99, slide_title)]
+        (11.0, 14.0, slide_type), (14.0, 99, slide_title)]
 
 
 def main():
@@ -260,7 +259,7 @@ def main():
         return (np.clip(c, 0, 1) * 255).astype(np.uint8)
 
     if preview:
-        times = [0.6, 2.4, 4.1, 7.0, 7.9, 9.7, 12.0, 14.6, 18.5]
+        times = [0.6, 2.4, 7.9, 9.7, 12.0, 13.5, 14.1, 15.5, 18.3]
         tiles = [cv2.resize(frame(t), (270, 480), interpolation=cv2.INTER_AREA) for t in times]
         Image.fromarray(np.hstack(tiles)).save(OUT / "vertical-contact.png")
         print("wrote contact")

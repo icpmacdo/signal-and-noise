@@ -10,6 +10,8 @@ The score follows trailer/pitch-vertical.md at 120 BPM (a beat every 0.5 s): thr
 hits at 2.0 / 3.5 / 5.0 s, a falling run for the fold, plucked notes for the bubbles, typing
 ticks, a build that lands on 14.0 s for the line slam, a stop at 16.0 s, and one chord under the
 title.
+
+Revised: no proof slide; the build from 13.0 lands the title at 14.0 and the piece ends at 18.5 s.
 """
 import wave
 from pathlib import Path
@@ -19,7 +21,7 @@ from scipy.signal import fftconvolve, butter, sosfilt
 
 SR = 44100
 OUT = Path(__file__).resolve().parent / "out"
-LENGTH = 20.5
+LENGTH = 18.5
 rng = np.random.default_rng(1)
 
 NAMES = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, "F": 5, "F#": 6, "Gb": 6,
@@ -108,7 +110,7 @@ def compose():
     s = Score(LENGTH)
     beat = 0.5
     # pedal changes with the harmony
-    for a, b in ((0, 2), (2, 3.5), (3.5, 5), (5, 6.5), (6.5, 8), (8, 10), (10, 12), (12, 13), (13, 14), (14, 15.95), (16.5, 20.5)):
+    for a, b in ((0, 2), (2, 3.5), (3.5, 5), (5, 6.5), (6.5, 8), (8, 10), (10, 12), (12, 13), (13, 14), (14, 18.5)):
         s.pedal_down(a, b - 0.02)
 
     # 0:00 cold open: low B pedal tone and a quiet eighth-note ostinato that keeps the pulse
@@ -156,14 +158,11 @@ def compose():
     rise = ["A3", "C#4", "E4", "G4", "A4", "C#5", "E5", "G5"]
     for i, nm in enumerate(rise):
         s.note(13.0 + i * 0.125, nm, 0.22 + i * 0.04, hold=0.2)
-    s.chord(14.0, ["D1", "D2", "A2"], 0.95, hold=2)                     # the slam
-    s.chord(14.01, ["D3", "F#3", "A3", "D4", "F#4", "A4"], 0.7, hold=2, roll=0.008)
-    for i in range(4):                                    # pulsing chords, swelling to the stop
-        s.chord(14.5 + i * beat, ["F#4", "A4", "D5"] if i % 2 == 0 else ["E4", "A4", "C#5"], 0.38 + i * 0.07, hold=0.4)
-        s.chord(14.5 + i * beat, ["D2", "A2"] if i < 2 else ["A1", "E2"], 0.42 + i * 0.06, hold=0.4)
-    # 0:16 stop (dampers fall), then one soft chord under the title
-    s.chord(16.5, ["D3", "A3", "E4", "F#4", "C#5"], 0.3, hold=3.5, roll=0.06)
-    s.note(17.5, "A5", 0.16, hold=2.5)
+    # 0:14 the title lands on the big chord and rings out on the pedal
+    s.chord(14.0, ["D1", "D2", "A2"], 0.95, hold=3)
+    s.chord(14.01, ["D3", "F#3", "A3", "D4", "F#4", "A4"], 0.7, hold=3, roll=0.008)
+    s.chord(15.5, ["A4", "C#5", "E5", "F#5"], 0.22, hold=2.5, roll=0.07)
+    s.note(16.5, "A5", 0.14, hold=2)
     return s
 
 
