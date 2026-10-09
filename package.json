@@ -8,5 +8,8 @@
     "test": "node --test test/",
     "e2e": "node scripts/e2e.js",
     "zip": "rm -f jev-mute.zip && zip -r jev-mute.zip manifest.json src icons"
+  },
+  "devDependencies": {
+    "puppeteer": "^24.43.1"
   }
 }
