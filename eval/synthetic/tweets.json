@@ -1,0 +1,2385 @@
+[
+ {
+  "id": "s001",
+  "author": "@kvcache_kate",
+  "text": "new paper shows you can drop 60% of the KV cache on long-context retrieval with <1pt loss on RULER. the trick is keeping the first 4 tokens + a sliding window + top-k by attention mass. code is up",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s002",
+  "author": "@gradnorm",
+  "text": "ran the same eval 5 times with different seeds and the spread was 3.2 points. if your leaderboard gap is smaller than that, you don't have a result, you have noise",
+  "quoted": "@leaderboard_bot: New SOTA! Model Z beats Model Y by 1.8 points on ReasonBench.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s003",
+  "author": "@tinybench",
+  "text": "we're releasing a 400-question held-out set for agentic coding. no public repos, all written in-house last month. top model gets 41%, median human contractor 68%",
+  "media": [
+   "photo"
+  ],
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s004",
+  "author": "@sre_mo",
+  "text": "tip: if your postgres queries got slow after a big delete, it's probably bloat. VACUUM (VERBOSE, ANALYZE) and check pg_stat_user_tables.n_dead_tup before you blame the planner",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s005",
+  "author": "@founder_lin",
+  "text": "we hit $1M ARR today. 14 months, 6 people, no paid marketing. most of it came from three integration partners. happy to answer questions about the partner playbook",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s006",
+  "author": "@dadjokes_dev",
+  "text": "my code doesn't have bugs, it has undocumented features that the users haven't consented to",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s007",
+  "author": "@quietpm",
+  "text": "took the kids to the coast this weekend and didn't open slack once. highly recommend",
+  "media": [
+   "photo"
+  ],
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s008",
+  "author": "@nn_nora",
+  "text": "honest question for people training small models: do you still bother with label smoothing, or has it stopped mattering at scale?",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s009",
+  "author": "@policy_desk",
+  "text": "The senate passed the data privacy bill 61-38 tonight. It now goes to the house, where the committee chair has said hearings will start in March. Summary of what's in it below.",
+  "media": [
+   "photo"
+  ],
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s010",
+  "author": "@chainwatch",
+  "text": "Bitcoin ETF inflows were $410M last week, the third straight week of net inflows. Ether products saw small outflows.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s011",
+  "author": "@arch_ana",
+  "text": "I think microservices were the wrong default for most startups and I'll die on this hill. a well-factored monolith with clear module boundaries gets you 90% of the benefit",
+  "quoted": "@cloudnative_carl: if you are not on microservices by series A you are already behind",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s012",
+  "author": "@mlops_raj",
+  "text": "we cut our inference bill 38% by moving the long-tail traffic to a distilled 8B and routing only hard prompts to the big model. the router is a 300M classifier. writeup:",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s013",
+  "author": "@typewriter_t",
+  "text": "reading the new scaling-laws paper. their fit breaks below 1e20 FLOPs, which they acknowledge in the appendix but not the abstract. worth reading the appendix",
+  "quoted": "@scaling_lab: New paper: a unified scaling law across five orders of magnitude of compute.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s014",
+  "author": "@sam_designs",
+  "text": "shipped dark mode. it took 3 weeks, not 3 days, because every chart had hardcoded hex colors. tokens from day one, people",
+  "media": [
+   "photo"
+  ],
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s015",
+  "author": "@ops_owl",
+  "text": "the outage yesterday was us. a config push removed a rate-limit exemption for internal traffic and the cache stampeded. full postmortem with timeline is up, sorry everyone",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s016",
+  "author": "@hn_lurker",
+  "text": "anyone have a good resource for learning CUDA that isn't just matrix multiply over and over?",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s017",
+  "author": "@vecdb_vic",
+  "text": "pgvector with HNSW is fine up to ~50M vectors on a single box for us. people reach for a dedicated vector db way too early",
+  "quoted": "@vector_startup: You need a purpose-built vector database. Postgres will not scale.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s018",
+  "author": "@coffeecoder",
+  "text": "rewrote our flaky e2e suite to wait on network idle instead of fixed sleeps. went from 14% flake rate to under 1%",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s019",
+  "author": "@econ_ella",
+  "text": "The jobs report came in at 180k vs 150k expected. Unemployment ticked down to 4.0%. Wage growth 3.6% y/y.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s020",
+  "author": "@paper_pete",
+  "text": "this RL paper is genuinely good: they show the reward hacking on the coding env and then fix it with held-out unit tests. the ablation table is the whole story",
+  "quoted": "@rl_lab_notes: New preprint: reward models for code are easily gamed by test-deleting. We show a 3-line fix.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s021",
+  "author": "@mira_builds",
+  "text": "congrats to the team, this is a real result. the 2x speedup on long sequences matters a lot for our use case",
+  "quoted": "@fastattn_dev: FlashKernel v3 is out: 2.1x faster attention on sequences >32k on H100s, numbers and kernels in the repo.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s022",
+  "author": "@grumpy_sre",
+  "text": "I'm sorry but if your deploy needs a 40-step runbook you don't have a deploy, you have a ritual",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s023",
+  "author": "@devrel_dee",
+  "text": "we're hosting a meetup in toronto next thursday on evals for llm apps. free, 60 spots, pizza. link in replies",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s024",
+  "author": "@juniorjo",
+  "text": "first PR merged into a big open source project today!! it was a docs fix but I'm counting it",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s025",
+  "author": "@statsguy",
+  "text": "reminder that a 95% CI that includes zero isn't 'trending toward significance'. it's a null result. and that's fine",
+  "quoted": "@wellness_study: Our results were trending toward significance (p=0.09) and suggest a strong effect.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s026",
+  "author": "@nn_nora",
+  "text": "replying to myself: several people said label smoothing still helps calibration even when it doesn't help accuracy. that matches what I see",
+  "context": "reply",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s027",
+  "author": "@llm_lena",
+  "text": "Strongly disagree with the take that RAG is dead. Long context is great but retrieval is still way cheaper per query and you can cite sources. Both will exist.",
+  "quoted": "@contextmaxi: with 10M context windows, RAG is basically obsolete",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s028",
+  "author": "@bookish_ben",
+  "text": "finished 'the mythical man-month' again. still the best book about software. adding people to a late project still makes it later",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s029",
+  "author": "@founder_lin",
+  "text": "to answer the most common question: yes we raised a small seed, no we haven't needed to touch most of it",
+  "context": "reply",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s030",
+  "author": "@gpu_gail",
+  "text": "H100 spot prices on the big clouds dropped about 30% since spring. if you priced a training run in march, reprice it",
+  "quoted": "@cloud_pricing_feed: Spot GPU price index, October update.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s031",
+  "author": "@kernel_ken",
+  "text": "spent the day chasing a 2% regression. it was a changed default in the allocator. read the changelogs, folks",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s032",
+  "author": "@mom_who_codes",
+  "text": "my 7 year old asked what I do at work. I said 'I tell computers what to do and they mostly ignore me'. she said 'like me'",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s033",
+  "author": "@sec_sara",
+  "text": "if you're running that popular open-source CI runner, patch today. the advisory is out and exploit code is public",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s034",
+  "author": "@anya_eval",
+  "text": "I think the new benchmark is flawed: 18% of the 'hard' questions have answer-key errors by my count. I've sent the authors a list and they've been responsive",
+  "quoted": "@benchmark_team: Introducing HardQA, 2,000 expert-written questions where frontier models score under 30%.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s035",
+  "author": "@urbanist_u",
+  "text": "the city approved the bike lane on main street 7-2. construction starts in may",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s036",
+  "author": "@product_pri",
+  "text": "unpopular opinion: most 'AI features' I've used this year would be better as a good search box",
+  "quoted": "@appco: Every screen in our app is now AI-powered.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s037",
+  "author": "@slowcooker",
+  "text": "made the dumbest sourdough loaf of my life and it's still delicious",
+  "media": [
+   "photo"
+  ],
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s038",
+  "author": "@tokenizer_tom",
+  "text": "thread on why your model can't count the r's in strawberry: it's not stupidity, it's tokenization. 1/",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s039",
+  "author": "@tokenizer_tom",
+  "text": "2/ the word becomes 2-3 subword tokens. the model never sees individual letters unless it learned to spell them from data",
+  "context": "reply",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s040",
+  "author": "@vc_vera",
+  "text": "we passed on that round and it was clearly a mistake. the team executed better than we modeled. owning it",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s041",
+  "author": "@open_weights",
+  "text": "new open-weights 70B under apache 2.0. on our internal evals it's within 2 points of the best closed model on code, 6 behind on math. weights and eval harness linked",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s042",
+  "author": "@juniorjo",
+  "text": "thank you everyone for the kind replies, did not expect this",
+  "context": "reply",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s043",
+  "author": "@react_rick",
+  "text": "server components finally clicked for me after building one real feature with them. the mental model is 'this runs once on the server, ship html'",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s044",
+  "author": "@climate_cal",
+  "text": "global average temps for september were the second warmest on record per the new dataset. full charts below",
+  "media": [
+   "photo"
+  ],
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s045",
+  "author": "@policy_desk",
+  "text": "Both parties' tax plans would raise the deficit per the CBO score: one by $1.1T, the other by $2.4T over ten years. Breakdown thread.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s046",
+  "author": "@bayes_bea",
+  "text": "I'm genuinely annoyed at how many papers report best-of-5 as if it were pass@1. please label your sampling",
+  "quoted": "@eval_paper: Our model achieves 78% on CodeBench (best of 5 samples, see appendix).",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s047",
+  "author": "@mlops_raj",
+  "text": "q for the replies: what's your p95 latency budget for a chat feature before users notice? we're debating 1.5s vs 3s",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s048",
+  "author": "@startup_sol",
+  "text": "we lost our biggest customer this month. 22% of revenue. not fun. we're fine on runway, and we learned a lot about concentration risk",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s049",
+  "author": "@robotics_ro",
+  "text": "our arm can now fold a towel in 40s. last year it was 3 minutes. still drops socks constantly",
+  "media": [
+   "video"
+  ],
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s050",
+  "author": "@cs_prof",
+  "text": "reminder to my students: the midterm covers chapters 4-7. office hours moved to thursday this week",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s051",
+  "author": "@quietpm",
+  "text": "hot take: the best meeting is a well-written doc and a 10-minute call to resolve the two open questions",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s052",
+  "author": "@defi_dana",
+  "text": "a lending protocol was exploited for ~$12M via an oracle manipulation. the team has paused contracts. if you have positions there, check their status page",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s053",
+  "author": "@sre_mo",
+  "text": "great writeup, the part about the retry storm is exactly what bit us last year",
+  "quoted": "@ops_owl: the outage yesterday was us. a config push removed a rate-limit exemption...",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s054",
+  "author": "@game_dev_gus",
+  "text": "shipped our indie game on steam after 4 years. 600 wishlists converted to 140 sales on day one. not huge, but it's real",
+  "media": [
+   "photo"
+  ],
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s055",
+  "author": "@linguist_lu",
+  "text": "fun fact: the model does way worse on my language than english even when the benchmark is translated. the translation quality is the bottleneck, not the model",
+  "quoted": "@multibench: We translated 12 benchmarks into 40 languages so models can be compared everywhere.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s056",
+  "author": "@anon_intern",
+  "text": "is it normal for a code review to take 4 days at a big company or is my team just slow",
+  "context": "reply",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s057",
+  "author": "@cfo_cass",
+  "text": "if you're a seed startup, close your books monthly. not quarterly. you'll catch problems 2 months earlier",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s058",
+  "author": "@paper_pete",
+  "text": "I don't think this paper shows what the title says. the effect disappears when you control for prompt length (fig 6). still interesting data",
+  "quoted": "@some_lab: Our new paper shows chain-of-thought makes models less honest.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s059",
+  "author": "@dadjokes_dev",
+  "text": "why do programmers prefer dark mode? because light attracts bugs. I'll see myself out",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s060",
+  "author": "@hn_lurker",
+  "text": "the comments on this are better than the article",
+  "quoted": "@techblog: Why we moved from kubernetes back to VMs",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s061",
+  "author": "@nurse_nat",
+  "text": "12 hour shift done. the new charting software saved me maybe 30 minutes today, which is the first time software has given me time back",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s062",
+  "author": "@vecdb_vic",
+  "text": "I was wrong about this. after more testing, the dedicated db is faster on filtered queries above 20M rows. updated the post",
+  "context": "reply",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s063",
+  "author": "@econ_ella",
+  "text": "Rates held steady. Statement language on inflation softened slightly. Market pricing two cuts by mid-year.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s064",
+  "author": "@arch_ana",
+  "text": "if your team argues about tabs vs spaces in 2026 you need a formatter and a hobby",
+  "quoted": "@style_wars: tabs are objectively better and spaces people are cowards",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s065",
+  "author": "@ml_mentor",
+  "text": "for anyone starting out: implement a transformer from scratch once. you will understand 10x more papers afterwards",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s066",
+  "author": "@founder_fay",
+  "text": "we're hiring 2 backend engineers in berlin. go/postgres, small team, real equity. DMs open",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s067",
+  "author": "@chainwatch",
+  "text": "A major exchange said it will delist three privacy coins in the EU next month to comply with new rules.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s068",
+  "author": "@typewriter_t",
+  "text": "I love this. someone finally benchmarked the claims instead of vibes",
+  "quoted": "@evalhub: We re-ran 12 viral \"model X beats model Y\" claims under controlled settings. 7 did not replicate.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s069",
+  "author": "@bookish_ben",
+  "text": "what are you all reading this month? I need fiction that isn't about tech",
+  "context": "reply",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s070",
+  "author": "@grumpy_sre",
+  "text": "pagerduty woke me at 3am for a disk at 81%. alert thresholds are a design problem, not an ops problem",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s071",
+  "author": "@llm_lena",
+  "text": "we tested 4 models as judges for our summarization eval. agreement with humans: 0.71, 0.68, 0.64, 0.52. the cheapest one was second best",
+  "media": [
+   "photo"
+  ],
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s072",
+  "author": "@sam_designs",
+  "text": "hard disagree. this redesign removed labels from icons and now nobody can find settings. pretty isn't the same as usable",
+  "quoted": "@appco: Our cleanest design yet. Meet the new app.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s073",
+  "author": "@climate_cal",
+  "text": "the policy is weak and I'm frustrated, but it's still the first binding methane target. better than nothing",
+  "quoted": "@climate_news: The new methane rule was finalised today, with targets weaker than the draft.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s074",
+  "author": "@cs_prof",
+  "text": "my students used AI tutors this term. average exam score went up 4 points but the bottom quartile didn't improve at all. small n, sharing anyway",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s075",
+  "author": "@robotics_ro",
+  "text": "lol yes the socks are a known enemy",
+  "context": "reply",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s076",
+  "author": "@gradnorm",
+  "text": "agree with most of this but I'd push back on point 3: weight decay matters a lot more at small batch sizes in my experience",
+  "context": "reply",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s077",
+  "author": "@vc_vera",
+  "text": "the AI agent startups that work all have the same shape: narrow task, measurable outcome, human in the loop at the expensive step",
+  "quoted": "@agent_watch: Why do most AI agent startups fail?",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s078",
+  "author": "@defi_dana",
+  "text": "crypto twitter will hate this but most of my portfolio is index funds and I sleep fine",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s079",
+  "author": "@ux_uma",
+  "text": "ran 6 user interviews on the onboarding flow. 5 of 6 skipped the tutorial and 4 of those got stuck at the same step. killing the tutorial, fixing the step",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s080",
+  "author": "@open_weights",
+  "text": "thanks for the bug report, the tokenizer config was wrong in the first upload. fixed now, re-download if you got it before 2pm",
+  "context": "reply",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s081",
+  "author": "@pol_scientist",
+  "text": "The new poll shows support for the infrastructure bill at 58% overall, with a 30-point partisan gap. Methodology note: online panel, n=2,100.",
+  "quoted": "@poll_tracker: New national poll on the infrastructure bill, out this morning.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s082",
+  "author": "@kvcache_kate",
+  "text": "people keep asking: no, it doesn't work on the small models, the attention patterns are too diffuse below ~3B. noted in the limitations",
+  "context": "reply",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s083",
+  "author": "@mom_who_codes",
+  "text": "the senator's speech on the childcare bill was the first time I've heard someone in that job describe my actual week. whatever you think of the bill, worth watching",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s084",
+  "author": "@startup_sol",
+  "text": "genuine question for founders: how did you decide when to hire your first salesperson?",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s085",
+  "author": "@hardware_hal",
+  "text": "teardown of the new AI pin: the battery is 60% of the volume. that explains the 4 hour life",
+  "media": [
+   "photo"
+  ],
+  "quoted": "@gadget_news: The AI pin teardown is here.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s086",
+  "author": "@bayes_bea",
+  "text": "great talk at the conference today on calibration in LLM judges. slides should be up next week",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s087",
+  "author": "@sec_sara",
+  "text": "this is a really good explanation of the bug. bookmarking for the next time someone asks why we pin dependencies",
+  "quoted": "@vulnwriter: How a typo in a transitive dependency compromised 3,000 builds",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s088",
+  "author": "@anon_intern",
+  "text": "update: my team is just slow. asked around",
+  "context": "reply",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s089",
+  "author": "@ml_mentor",
+  "text": "reposting this because it's still the clearest explanation of attention I've read",
+  "quoted": "@attn_explainer: Attention, explained with a library analogy, no math.",
+  "context": "reposted by @ml_mentor",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s090",
+  "author": "@gpu_gail",
+  "text": "wild that the open model is this close. competition is good for everyone building on top",
+  "quoted": "@open_weights: new open-weights 70B under apache 2.0...",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s091",
+  "author": "@nn_nora",
+  "text": "just realized I've been reading the same paper for 3 days. it's good, I'm just slow",
+  "context": "reply",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s092",
+  "author": "@founder_fay",
+  "text": "we tried a 4-day week for 3 months. output was flat, sick days down 40%, nobody wants to go back. keeping it",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s093",
+  "author": "@slowcooker",
+  "text": "replying to the bread discourse: yes the crumb is dense. yes I ate all of it",
+  "context": "reply",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s094",
+  "author": "@policy_wonk2",
+  "text": "This is a fair critique of the bill. The enforcement section is underfunded by about half relative to the CBO estimate, and that should be fixed in conference.",
+  "quoted": "@think_tank: The privacy bill sets strong rules and then funds enforcement at a level that guarantees they won't be used.",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s095",
+  "author": "@react_rick",
+  "text": "what's the one library you'd never start a frontend project without? genuinely curious, putting together a starter",
+  "kind": "clean",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s096",
+  "author": "@patriot_pulse_88",
+  "text": "They are coming for EVERYTHING you love. The other party has declared war on normal people and if you're still silent you're COMPLICIT. 🤬🤬",
+  "kind": "clear",
+  "labels": {
+   "m0": 1,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s097",
+  "author": "@redline_truth",
+  "text": "Every single person who voted for this bill should be ashamed to show their face in public. TRAITORS. Share this so everyone knows their names.",
+  "kind": "clear",
+  "labels": {
+   "m0": 1,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s098",
+  "author": "@wakeup_now_",
+  "text": "you are being LIED to. the senator's party wants you poor, scared and dependent. if this doesn't make you furious you're not paying attention",
+  "kind": "clear",
+  "labels": {
+   "m0": 1,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s099",
+  "author": "@based_or_not",
+  "text": "the other side doesn't want to debate. they want you GONE. look at this clip and tell me I'm wrong",
+  "media": [
+   "video"
+  ],
+  "kind": "clear",
+  "labels": {
+   "m0": 1,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s100",
+  "author": "@civic_fury",
+  "text": "Imagine still defending them after THIS. Pathetic. History will not forgive any of you.",
+  "quoted": "@newsclip_acct: Clip from tonight's hearing",
+  "kind": "clear",
+  "labels": {
+   "m0": 1,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s101",
+  "author": "@moon_mission_x",
+  "text": "🚀🚀 $GROK9 just launched and it's going to 100x by sunday. dev is based, liquidity locked, NFA but you'll regret missing this",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 1,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s102",
+  "author": "@alpha_whale_calls",
+  "text": "I turned $500 into $41,000 in 9 days with one simple strategy. most people will scroll past this. join the telegram (link in bio) 🔥",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 1,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s103",
+  "author": "@degen_daily",
+  "text": "if you're not in $FROGAI right now you're ngmi. this is the last chance under 1M mcap. ape now 🐸💎",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 1,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s104",
+  "author": "@passive_income_pro",
+  "text": "Make $3k/day with AI trading bots — no experience needed. I'll show 10 people how. Comment 'BOT' 👇",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 1,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s105",
+  "author": "@sol_sniper",
+  "text": "called $PUMPX at 40k mcap, now at 2M. next call drops in my channel in 1 hour. don't be late",
+  "media": [
+   "photo"
+  ],
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 1,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s106",
+  "author": "@growth_hacks_daily",
+  "text": "Like if you agree. Ignore if you're a hater 🙏 who else is still coding at 2am?",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 1,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s107",
+  "author": "@viral_vibes",
+  "text": "RT this in the next 10 minutes and something good will happen to you this week ✨",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 1,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s108",
+  "author": "@followtrain_tech",
+  "text": "Follow train for devs! 🚂 Drop your handle below and follow everyone who likes this. Let's all grow together!",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 1,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s109",
+  "author": "@giveaway_king_",
+  "text": "🎁 GIVEAWAY 🎁 Giving away 3 RTX 5090s!! To enter: follow, like, RT, tag 3 friends. Winners in 24h",
+  "media": [
+   "photo"
+  ],
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 1,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s110",
+  "author": "@reply_guy_magnet",
+  "text": "Only real engineers will know the answer to this 👇 most people get it wrong",
+  "media": [
+   "photo"
+  ],
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 1,
+   "m3": 0,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s111",
+  "author": "@ai_maximalist",
+  "text": "This changes EVERYTHING. Software engineering is dead. If you're not building with agents right now you're already obsolete. 🤯",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 1,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s112",
+  "author": "@future_is_now_ai",
+  "text": "We are not ready for what's coming in the next 6 months. Nothing will ever be the same. Nothing.",
+  "context": "reposted by @hype_fan_22",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 1,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s113",
+  "author": "@prompt_god",
+  "text": "Google is dead. ChatGPT is dead. This new tool just ended them all 😳 (thread) 🧵",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 1,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s114",
+  "author": "@agi_tomorrow",
+  "text": "I've seen things in private demos that would make your head spin. AGI is basically here and nobody is talking about it.",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 1,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s115",
+  "author": "@hype_drop",
+  "text": "RIP to every SaaS company. AI just made all of you irrelevant overnight 💀",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 1,
+   "m4": 0
+  }
+ },
+ {
+  "id": "s116",
+  "author": "@snark_engine",
+  "text": "imagine being this confidently wrong in public 😂 deleting your account would be the smart move",
+  "quoted": "@juniorjo: I think tabs are better than spaces for accessibility reasons",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 1
+  }
+ },
+ {
+  "id": "s117",
+  "author": "@ratio_machine",
+  "text": "this guy has a phd and still can't read a chart lmaooo",
+  "quoted": "@some_researcher: Our results show a clear upward trend (fig 2).",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 1
+  }
+ },
+ {
+  "id": "s118",
+  "author": "@cringe_collector",
+  "text": "posting this so everyone can see what a clown looks like 🤡",
+  "quoted": "@startup_newbie: just launched my first app! it's a to-do list but with AI",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 1
+  }
+ },
+ {
+  "id": "s119",
+  "author": "@lol_ok_buddy",
+  "text": "\"senior engineer\" btw. imagine paying this person",
+  "quoted": "@dev_sincere: TIL you can use git stash to save changes temporarily",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 1
+  }
+ },
+ {
+  "id": "s120",
+  "author": "@mean_takes_only",
+  "text": "every word of this is embarrassing. you should be embarrassed. log off forever",
+  "context": "reply",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 1
+  }
+ },
+ {
+  "id": "s121",
+  "author": "@policy_wonk2",
+  "text": "Honestly the way the senate handled this bill tonight is embarrassing. Both parties should be ashamed. This is not how you legislate.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0.5,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "heated, but critiques process and both sides; no call to outrage"
+ },
+ {
+  "id": "s122",
+  "author": "@voter_vic",
+  "text": "I'm so angry about the vote today I can't think straight. 40% of my town relies on that clinic.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0.5,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "raw anger with a concrete stake; sincere, not farming"
+ },
+ {
+  "id": "s123",
+  "author": "@calm_critic",
+  "text": "This is textbook rage bait and you're all falling for it. Read the actual bill text, it says the opposite.",
+  "quoted": "@redline_truth: Every single person who voted for this bill should be ashamed... TRAITORS.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0.5,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "quotes rage bait in order to criticise it; the quoted text is pure rage"
+ },
+ {
+  "id": "s124",
+  "author": "@pol_scientist",
+  "text": "One party has now blocked the bill four times. At some point you have to call it what it is: obstruction.",
+  "quoted": "@party_press: Our party will not support a bill that raises costs for families.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0.5,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "partisan opinion stated plainly; strong but not outrage-farming"
+ },
+ {
+  "id": "s125",
+  "author": "@town_hall_tess",
+  "text": "if you live in district 9, the vote on the zoning change is thursday. they are counting on you not showing up. show up.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0.5,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "mobilising 'they are counting on you' framing vs civic info"
+ },
+ {
+  "id": "s126",
+  "author": "@newsy_nick",
+  "text": "The senator called the opposing party's plan 'a betrayal of every working family' in tonight's speech. Video below.",
+  "media": [
+   "video"
+  ],
+  "kind": "borderline",
+  "labels": {
+   "m0": 0.5,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "neutral reporting of a rage quote"
+ },
+ {
+  "id": "s127",
+  "author": "@sarcasm_sal",
+  "text": "oh great, another bill that definitely won't be gutted in committee. love democracy 🙃",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0.5,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "sarcastic cynicism about politics, low outrage"
+ },
+ {
+  "id": "s128",
+  "author": "@econ_ella",
+  "text": "Absolutely infuriating that the tariff bill passed with zero hearings. Here's the CBO score nobody in the chamber read:",
+  "quoted": "@cbo_watch: CBO score for the tariff bill: $310B over 10 years.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0.5,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "anger + substance (link to score)"
+ },
+ {
+  "id": "s129",
+  "author": "@hodl_hannah",
+  "text": "Bitcoin just crossed $150k. Wild to think I was buying at 20k. Glad I didn't sell.",
+  "quoted": "@price_ticker: BTC crosses $150,000 for the first time.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0.5,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "brag about gains vs shilling; no call to buy"
+ },
+ {
+  "id": "s130",
+  "author": "@chain_dev_cody",
+  "text": "we just launched our token on mainnet. it's the governance token for our protocol, audited twice, docs below. not financial advice, it's a vote",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0.5,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "legit project launch that is also a token promo"
+ },
+ {
+  "id": "s131",
+  "author": "@macro_mike",
+  "text": "I think ETH is massively undervalued at this price and I'm adding to my position. here's my reasoning (thread)",
+  "quoted": "@eth_chart_daily: ETH down 40% from its high.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0.5,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "investment thesis with reasoning vs pumping"
+ },
+ {
+  "id": "s132",
+  "author": "@side_hustle_sam",
+  "text": "I made $2,300 last month from a small AI SaaS I built on weekends. not life-changing, but here's exactly how",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0.5,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "income post with substance vs get-rich-quick"
+ },
+ {
+  "id": "s133",
+  "author": "@nft_nina",
+  "text": "mint is live 🎨 300 pieces, hand-drawn, 0.02 each. thank you to everyone who supported this",
+  "media": [
+   "photo"
+  ],
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0.5,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "artist selling NFTs; promo but not shilling returns"
+ },
+ {
+  "id": "s134",
+  "author": "@defi_dana",
+  "text": "yields on this stablecoin pool are 14% right now. I'm in, sized small. high yield = high risk, do your own homework",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0.5,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "sharing a yield opp with caveats"
+ },
+ {
+  "id": "s135",
+  "author": "@crypto_skeptic",
+  "text": "lol at everyone who said this coin would 100x. down 94%",
+  "quoted": "@moon_mission_x: $GROK9 going to 100x by sunday",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0.5,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0.5
+  },
+  "note": "mocks shills; quotes a shill; partial dunk"
+ },
+ {
+  "id": "s136",
+  "author": "@vc_vera",
+  "text": "The best founders I know are quietly building on crypto rails again. Stablecoin payments are real now. Don't sleep on it.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0.5,
+   "m2": 0,
+   "m3": 1,
+   "m4": 0
+  },
+  "note": "'don't sleep on it' framing on a plausible trend; part hype"
+ },
+ {
+  "id": "s137",
+  "author": "@bookish_ben",
+  "text": "What's one book that changed how you think? I'll go first: Thinking in Systems.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0.5,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "'what's your favourite X' prompt; genuine but also reply-farming shape"
+ },
+ {
+  "id": "s138",
+  "author": "@dev_poller",
+  "text": "tabs or spaces? wrong answers only 👇",
+  "context": "reply",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0.5,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "classic reply bait, but harmless fun"
+ },
+ {
+  "id": "s139",
+  "author": "@founder_fay",
+  "text": "we just hit 10k users!! if you've used the app, reply with one thing you'd change. reading every reply",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0.5,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "asks for replies for a real reason (feedback)"
+ },
+ {
+  "id": "s140",
+  "author": "@coffeecoder",
+  "text": "drop your github below and I'll star the ones I like ⭐",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0.5,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "community-building vs follow/star farming"
+ },
+ {
+  "id": "s141",
+  "author": "@giveaway_good",
+  "text": "we're giving away 5 free conference tickets to students. reply with what you're building, we'll pick by friday",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0.5,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "real giveaway with a merit criterion, not fake"
+ },
+ {
+  "id": "s142",
+  "author": "@tech_twitter_tim",
+  "text": "name a more overrated programming language. I'll wait.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0.5,
+   "m3": 0,
+   "m4": 0.5
+  },
+  "note": "engagement bait shape + mild dunk on a language"
+ },
+ {
+  "id": "s143",
+  "author": "@quietpm",
+  "text": "bookmark this. you'll need it later. 10 lessons from 10 years of product management 🧵",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0.5,
+   "m3": 0.5,
+   "m4": 0
+  },
+  "note": "'bookmark this' + listicle thread; bait shape, may have substance"
+ },
+ {
+  "id": "s144",
+  "author": "@ml_mentor",
+  "text": "If this gets 500 likes I'll release the full course for free.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0.5,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "like-gated release; bait mechanic but real reward"
+ },
+ {
+  "id": "s145",
+  "author": "@open_weights",
+  "text": "This is a big deal. The new open model matches last year's best closed model on code at 1/10 the cost. The gap is closing fast.",
+  "quoted": "@open_weights: new open-weights 70B under apache 2.0...",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0.5,
+   "m4": 0
+  },
+  "note": "excited framing but concrete claim"
+ },
+ {
+  "id": "s146",
+  "author": "@agent_andy",
+  "text": "we gave an agent our whole support queue for a week. it resolved 61% end to end. this is going to change how support teams work, full stop",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0.5,
+   "m4": 0
+  },
+  "note": "real number, then sweeping claim"
+ },
+ {
+  "id": "s147",
+  "author": "@vc_vera",
+  "text": "In 5 years every company will be an AI company. The ones that don't adapt won't exist.",
+  "quoted": "@consulting_co: Survey: 72% of CEOs say AI is their top priority for 2027.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0.5,
+   "m4": 0
+  },
+  "note": "generic prediction; no specifics but common VC opinion"
+ },
+ {
+  "id": "s148",
+  "author": "@product_pri",
+  "text": "tried the new coding agent for a day. honestly mind-blowing. built a full CRUD app in 20 minutes. not sure what this means for juniors",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0.5,
+   "m4": 0
+  },
+  "note": "personal enthusiasm with a concrete anecdote"
+ },
+ {
+  "id": "s149",
+  "author": "@llm_lena",
+  "text": "Every benchmark we have is saturated. We genuinely don't know how to measure these models anymore.",
+  "quoted": "@benchmark_team: Introducing HardQA, 2,000 expert-written questions where frontier models score under 30%.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0.5,
+   "m4": 0
+  },
+  "note": "sweeping but defensible research claim"
+ },
+ {
+  "id": "s150",
+  "author": "@prompt_pam",
+  "text": "5 AI tools that will save you 10 hours a week (thread) 🧵",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0.5,
+   "m3": 0.5,
+   "m4": 0
+  },
+  "note": "listicle hype + engagement shape"
+ },
+ {
+  "id": "s151",
+  "author": "@robotics_ro",
+  "text": "I think humanoid robots are 2-3 years away from being genuinely useful in warehouses. Here's what I'm seeing in the lab.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0.5,
+   "m4": 0
+  },
+  "note": "forecast with promised evidence"
+ },
+ {
+  "id": "s152",
+  "author": "@ai_curious",
+  "text": "is anyone else kind of scared? things are moving so fast",
+  "context": "reply",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0.5,
+   "m4": 0
+  },
+  "note": "anxious vibe post; not hype marketing, but no substance"
+ },
+ {
+  "id": "s153",
+  "author": "@anya_eval",
+  "text": "This benchmark is broken. 18% of the answers are wrong and the authors didn't check. Embarrassing for a paper with this much attention.",
+  "quoted": "@benchmark_team: Introducing HardQA...",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0.5
+  },
+  "note": "pointed criticism with evidence + 'embarrassing'"
+ },
+ {
+  "id": "s154",
+  "author": "@paper_pete",
+  "text": "I'm sorry but this is just a worse version of a 2019 paper with a new name",
+  "quoted": "@some_lab: Introducing our novel method...",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0.5
+  },
+  "note": "sharp critique vs dismissive dunk"
+ },
+ {
+  "id": "s155",
+  "author": "@grumpy_sre",
+  "text": "whoever designed this API has never had to page someone at 3am",
+  "quoted": "@cloudco: Announcing our new monitoring API",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0.5
+  },
+  "note": "jab at a product team, not a person by name"
+ },
+ {
+  "id": "s156",
+  "author": "@statsguy",
+  "text": "Friendly reminder that this chart starts the y-axis at 98 to make a 1% change look like a cliff",
+  "quoted": "@growth_ceo: Our competitor is collapsing 📉",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0.5
+  },
+  "note": "factual correction that also embarrasses the poster"
+ },
+ {
+  "id": "s157",
+  "author": "@sarcasm_sal",
+  "text": "ah yes, the famous 'we're like uber but for spreadsheets' pitch. truly visionary",
+  "quoted": "@pitch_deck_daily: Today's pitch: \"Uber for spreadsheets\". Seed round, $8M post.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0.5
+  },
+  "note": "sarcasm at a generic pitch, no specific target"
+ },
+ {
+  "id": "s158",
+  "author": "@hn_lurker",
+  "text": "the replies to this are brutal and honestly deserved",
+  "quoted": "@startup_newbie: we're charging $99/mo for a wrapper around the free API",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0.5
+  },
+  "note": "endorses a pile-on without adding mockery"
+ },
+ {
+  "id": "s159",
+  "author": "@tech_twitter_tim",
+  "text": "remember when everyone said this company would never ship? anyway they shipped",
+  "quoted": "@tech_press: The company once mocked for delays has shipped its product.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0.5
+  },
+  "note": "mild 'told you so' at unnamed critics"
+ },
+ {
+  "id": "s160",
+  "author": "@vc_vera",
+  "text": "Respectfully, this is the worst take I've read all year.",
+  "context": "reply",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0.5
+  },
+  "note": "dismissive but short, 'respectfully'"
+ },
+ {
+  "id": "s161",
+  "author": "@patriot_pulse_88",
+  "text": "look at this clown 🤡 the senator can't even read his own bill. and you people vote for this?? disgusting",
+  "media": [
+   "video"
+  ],
+  "kind": "clear",
+  "labels": {
+   "m0": 1,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 1
+  },
+  "note": "overlap: political rage + mocking a person"
+ },
+ {
+  "id": "s162",
+  "author": "@ai_maximalist",
+  "text": "AI just made 90% of jobs obsolete. Like and RT if you're ready for the future, ignore if you want to be left behind 🚀",
+  "quoted": "@jobs_report_bot: Report: AI could affect tasks in 40% of jobs.",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 1,
+   "m3": 1,
+   "m4": 0
+  },
+  "note": "overlap: AI hype + engagement bait"
+ },
+ {
+  "id": "s163",
+  "author": "@moon_giveaway",
+  "text": "🎁 $1,000 in $FROGAI to 5 winners!! Follow + RT + tag 2 friends. This coin is going to 50x, don't miss it 🐸",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 1,
+   "m2": 1,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "overlap: crypto shill + fake giveaway"
+ },
+ {
+  "id": "s164",
+  "author": "@prompt_god",
+  "text": "lmao imagine still writing code by hand in 2026. software engineers are cooked. AGI next year 🤖",
+  "quoted": "@juniorjo: first PR merged into a big open source project today!!",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 0,
+   "m3": 1,
+   "m4": 1
+  },
+  "note": "overlap: AI hype + mocking a group"
+ },
+ {
+  "id": "s165",
+  "author": "@redline_truth",
+  "text": "retweet if you think the other party has completely lost its mind",
+  "kind": "borderline",
+  "labels": {
+   "m0": 1,
+   "m1": 0,
+   "m2": 0.5,
+   "m3": 0,
+   "m4": 0
+  },
+  "note": "overlap: rage bait + RT farming; engagement part debatable"
+ },
+ {
+  "id": "s166",
+  "author": "@alpha_whale_calls",
+  "text": "Bitcoin to $1M is a mathematical certainty. Anyone saying otherwise is a broke loser who will be begging for my scraps",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 1,
+   "m2": 0,
+   "m3": 0,
+   "m4": 1
+  },
+  "note": "overlap: crypto shilling + insulting doubters"
+ },
+ {
+  "id": "s167",
+  "author": "@crypto_skeptic",
+  "text": "another 'AI agent coin' that does nothing. these people will sell you anything 😂",
+  "quoted": "@agentcoin_launch: $AGENT is the first coin run by an autonomous AI agent 🤖",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0,
+   "m1": 0.5,
+   "m2": 0,
+   "m3": 0.5,
+   "m4": 0.5
+  },
+  "note": "overlap: mocks crypto+AI hype; mentions topics but isn't shilling"
+ },
+ {
+  "id": "s168",
+  "author": "@civic_fury",
+  "text": "Every politician who took tech money should be fired. AI will replace them anyway lol",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0.5,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0.5,
+   "m4": 0.5
+  },
+  "note": "overlap: political anger + vague AI claim + jab"
+ },
+ {
+  "id": "s169",
+  "author": "@hype_drop",
+  "text": "Only 1% of people understand what just happened with AI 🤯 Comment 'AI' and I'll DM you the guide",
+  "kind": "clear",
+  "labels": {
+   "m0": 0,
+   "m1": 0,
+   "m2": 1,
+   "m3": 1,
+   "m4": 0
+  },
+  "note": "overlap: hype + comment-to-get bait"
+ },
+ {
+  "id": "s170",
+  "author": "@snark_engine",
+  "text": "the senator's AI policy speech was written by someone who thinks GPUs are a kind of vegetable",
+  "quoted": "@hearing_clip: The senator's full remarks on AI policy at today's hearing.",
+  "kind": "borderline",
+  "labels": {
+   "m0": 0.5,
+   "m1": 0,
+   "m2": 0,
+   "m3": 0,
+   "m4": 0.5
+  },
+  "note": "overlap: political mockery; funny vs dunk"
+ }
+]
