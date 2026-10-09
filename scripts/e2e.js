@@ -212,6 +212,13 @@ try {
   await popup.setViewport({ width: 360, height: 560 });
   await popup.goto(`chrome-extension://${extId}/src/popup.html`);
   await popup.screenshot({ path: join(ROOT, 'shots/popup.png') });
+
+  // 6b. Back on from the popup switch (it rewrites settings): the timeline filters again.
+  await popup.click('#enabled');
+  await page.bringToFront();
+  await page.waitForFunction(() => document.querySelectorAll('article.jm-hidden').length > 0
+    && document.querySelectorAll('article.jm-pending').length === 0, { timeout: 6000 }).catch(() => {});
+  check(await page.$$eval('article.jm-hidden', (x) => x.length) > 0, 'turning it back on from the popup hides again');
   const opts = await browser.newPage();
   await worker.evaluate(async () => {
     const { settings } = await chrome.storage.local.get('settings');
