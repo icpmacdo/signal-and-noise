@@ -1,0 +1,39 @@
+/* Signal & Noise decision pages — shared tokens. Layout: one reading column with instrument panels
+   that break wider; summaries before detail; every chart answers one decision. */
+:root {
+  --bg: #f5f6f8;          /* cool paper */
+  --panel: #ffffff;
+  --ink: #12161d;
+  --ink-2: #4c5563;
+  --ink-3: #7b8492;
+  --line: #dde1e8;
+  --line-2: #c9ced8;
+  --accent: #2552c9;      /* controls, links, the threshold line */
+  --accent-soft: #e4ebfb;
+  --noise: #c4471c;       /* "hidden" / labelled noise */
+  --noise-soft: #fbe9e1;
+  --unsure: #a57a00;      /* labelled debatable */
+  --fine: #5b6472;        /* labelled fine */
+  --good: #1d7f4e;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4;
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "Public Sans", -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1216; --panel: #171b21; --ink: #e8ebf0; --ink-2: #aab2bf; --ink-3: #7d8592;
+    --line: #2a3039; --line-2: #39404b; --accent: #7d9df0; --accent-soft: #1d2740;
+    --noise: #f07a4c; --noise-soft: #3a2018; --unsure: #d9a92e; --fine: #8b94a2; --good: #46b07a;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1216; --panel: #171b21; --ink: #e8ebf0; --ink-2: #aab2bf; --ink-3: #7d8592;
+  --line: #2a3039; --line-2: #39404b; --accent: #7d9df0; --accent-soft: #1d2740;
+  --noise: #f07a4c; --noise-soft: #3a2018; --unsure: #d9a92e; --fine: #8b94a2; --good: #46b07a;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181;
+  color-scheme: dark;
+}

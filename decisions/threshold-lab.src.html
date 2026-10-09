@@ -1,0 +1,691 @@
+<title>Threshold Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;600&family=Public+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+/*TOKENS*/
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); padding-inline: 16px; padding-block: 28px 64px; }
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 44px; }
+.col { max-width: 68ch; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(34px, 6vw, 56px); font-stretch: 112%; font-weight: 800; line-height: 1; }
+h2 { font-size: 26px; font-stretch: 105%; font-weight: 750; }
+h3 { font-size: 15px; font-weight: 700; }
+p { margin: 0; }
+.eyebrow { font: 600 11.5px/1 var(--mono); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); }
+.lede { font-size: 17.5px; color: var(--ink-2); max-width: 64ch; }
+.stack { display: grid; gap: 14px; }
+.muted { color: var(--ink-2); }
+.small { font-size: 13px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+a { color: var(--accent); }
+
+.prov { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 12px/1 var(--mono); padding: 6px 9px; border: 1px solid var(--line-2); border-radius: 999px; color: var(--ink-2); background: var(--panel); white-space: nowrap; }
+.chip.warn { border-color: var(--unsure); color: var(--unsure); }
+
+/* sticky controls */
+.controls { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); padding-block: 10px; margin-inline: -16px; padding-inline: 16px; }
+.controls-inner { max-width: 1120px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.seg button { font: 600 13px/1 var(--body); padding: 8px 12px; border: 0; background: none; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.seg button + button { border-left: 1px solid var(--line-2); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+.seg button:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ctl-label { font: 600 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.mute-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.mute-tab { display: inline-flex; align-items: center; gap: 7px; font: 600 13px/1 var(--body); padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--line-2); background: var(--panel); color: var(--ink); cursor: pointer; }
+.mute-tab .sw { width: 9px; height: 9px; border-radius: 2px; }
+.mute-tab[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.mute-tab.off { opacity: 0.45; }
+.mute-tab.off .name { text-decoration: line-through; }
+
+/* panels */
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; min-width: 0; }
+.grid-lab { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+@media (max-width: 860px) { .grid-lab { grid-template-columns: 1fr; } }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+
+/* strip chart */
+.strip svg { width: 100%; height: auto; display: block; touch-action: none; user-select: none; }
+.axis text, .lane-label { fill: var(--ink-3); font: 11px var(--mono); }
+.lane-label { font: 600 11px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+.gridline { stroke: var(--line); stroke-width: 1; }
+.hidden-zone { fill: var(--noise-soft); }
+.thr-line { stroke: var(--accent); stroke-width: 2; }
+.thr-handle { fill: var(--accent); cursor: ew-resize; }
+.thr-text { fill: var(--accent); font: 600 12px var(--mono); }
+.dot { stroke: var(--panel); stroke-width: 1.5; cursor: pointer; }
+.dot.l1 { fill: var(--noise); } .dot.l05 { fill: var(--unsure); } .dot.l0 { fill: var(--fine); }
+.dot.hit-ring { stroke: var(--ink); stroke-width: 2; }
+.dot.flash { animation: flash 0.7s ease-out; }
+@keyframes flash { 0% { r: 9; } 100% { } }
+@media (prefers-reduced-motion: reduce) { .dot.flash { animation: none; } }
+.range-row { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+.range-row input { flex: 1; accent-color: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--ink-2); margin-top: 6px; }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+
+/* outcome panel */
+.outcome { display: grid; gap: 14px; }
+.big { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.big .v { font: 700 30px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.big .k { font-size: 13px; color: var(--ink-2); grid-column: 1 / -1; }
+.big .ci { font: 12px var(--mono); color: var(--ink-3); }
+.big.bad .v { color: var(--noise); }
+.big.ok .v { color: var(--good); }
+.slider-field { display: grid; gap: 4px; }
+.slider-field label { font-size: 13px; color: var(--ink-2); display: flex; justify-content: space-between; gap: 8px; }
+.slider-field input { accent-color: var(--accent); width: 100%; }
+.guess { font: 600 10.5px/1 var(--mono); color: var(--unsure); letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* tweet cards */
+.tw { border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; background: var(--panel); font-size: 14px; min-width: 0; }
+.tw .who { font: 600 12.5px var(--mono); color: var(--ink-2); display: flex; gap: 8px; flex-wrap: wrap; }
+.tw .ctx { color: var(--ink-3); font-weight: 400; }
+.tw .txt { margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tw .qt { margin-top: 8px; border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; color: var(--ink-2); font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tw .meta { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font: 11px/1 var(--mono); padding: 4px 6px; border-radius: 4px; background: var(--bg); color: var(--ink-2); border: 1px solid var(--line); }
+.tag.l1 { color: var(--noise); border-color: currentColor; } .tag.l05 { color: var(--unsure); border-color: currentColor; }
+.list { display: grid; gap: 8px; max-height: 420px; overflow: auto; padding-right: 4px; }
+.empty { color: var(--ink-3); font-size: 13.5px; padding: 12px; border: 1px dashed var(--line-2); border-radius: var(--r); }
+.flips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; }
+.flip { font: 12px var(--mono); padding: 5px 8px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--panel); cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flip.to-hidden { border-color: var(--noise); color: var(--noise); }
+.flip.to-shown { border-color: var(--accent); color: var(--accent); }
+
+#tip { position: fixed; z-index: 20; max-width: min(360px, calc(100vw - 32px)); pointer-events: none; box-shadow: 0 8px 28px rgb(0 0 0 / 0.18); }
+
+/* feed */
+.feeds { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .feeds { grid-template-columns: 1fr; } }
+.feed { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); max-height: 620px; overflow: auto; }
+.feed-head { position: sticky; top: 0; background: var(--panel); border-bottom: 1px solid var(--line); padding: 10px 12px; display: flex; justify-content: space-between; gap: 8px; z-index: 1; }
+.fitem { padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 14px; }
+.fitem .who { font: 600 12px var(--mono); color: var(--ink-2); }
+.fitem .txt { white-space: pre-wrap; overflow-wrap: anywhere; }
+.fbar { padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--ink-3); display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.fbar .why { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fbar .mistake { font: 600 10.5px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--noise); border: 1px solid currentColor; padding: 3px 5px; border-radius: 4px; flex: none; }
+.fbar.reveal-ok .verdict { color: var(--good); }
+.fitem.leak { box-shadow: inset 3px 0 0 var(--noise); }
+.btn { font: 600 13px/1 var(--body); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--panel); color: var(--ink); cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+.toggle { display: inline-flex; gap: 8px; align-items: center; font-size: 13.5px; color: var(--ink-2); cursor: pointer; }
+.toggle input { accent-color: var(--accent); }
+
+/* tables */
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 11px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.verdict { font: 700 11px/1 var(--mono); letter-spacing: 0.05em; text-transform: uppercase; padding: 5px 7px; border-radius: 4px; border: 1px solid currentColor; white-space: nowrap; display: inline-block; }
+.v-ship { color: var(--good); } .v-opt { color: var(--unsure); } .v-no { color: var(--noise); }
+
+/* scatter + dumbbell */
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--ink-3); font: 11px var(--mono); }
+.db-row line.conn { stroke: var(--line-2); stroke-width: 2; }
+.mark-alone { fill: var(--ink); } .mark-loud { fill: var(--noise); } .mark-clean { fill: var(--accent); } .mark-mixed { fill: var(--unsure); }
+
+.callout { border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; }
+.unknowns { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.unk { border: 1px solid var(--line); border-radius: var(--r); padding: 14px; background: var(--panel); display: grid; gap: 6px; align-content: start; }
+.unk .kind { font: 600 10.5px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.rec { background: var(--ink); color: var(--bg); border-radius: var(--r); padding: 26px; display: grid; gap: 14px; }
+.rec h2 { color: var(--bg); }
+.rec .q { border-top: 1px solid color-mix(in srgb, var(--bg) 25%, transparent); padding-top: 14px; font-size: 17px; }
+.rec .eyebrow { color: color-mix(in srgb, var(--bg) 65%, transparent); }
+.rec ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+</style>
+
+<div class="wrap">
+  <header class="stack">
+    <div class="eyebrow">Signal &amp; Noise · decisions 2, 3 and 4</div>
+    <h1>Threshold Lab</h1>
+    <p class="lede">Drag the line and watch which tweets fall on each side. Every dot is a synthetic tweet Jev actually scored, one call per tweet. The numbers on the right turn that into what you'd notice in your feed per 1,000 tweets scrolled.</p>
+    <div class="prov" id="prov"></div>
+  </header>
+</div>
+
+<div class="controls" role="toolbar" aria-label="View controls">
+  <div class="controls-inner">
+    <span class="ctl-label">How Jev is asked</span>
+    <div class="seg" id="design-seg">
+      <button type="button" data-design="choice" aria-pressed="true">One question: keep, or which mute?</button>
+      <button type="button" data-design="noul" aria-pressed="false">Yes/no per mute</button>
+    </div>
+    <span class="ctl-label">Mute</span>
+    <div class="mute-tabs" id="mute-tabs"></div>
+    <span class="small muted">Double-click a mute to switch it off</span>
+  </div>
+</div>
+
+<div class="wrap" style="margin-top:28px">
+  <section class="stack" aria-labelledby="h-line">
+    <h2 id="h-line">Where the line sits</h2>
+    <p class="col muted">Right of the line gets folded away. Dot colour is the label I gave each tweet when writing it: <b style="color:var(--noise)">noise</b> for this mute, <b style="color:var(--unsure)">debatable</b>, or <b style="color:var(--fine)">fine</b>. The axis is stretched at both ends (log-odds) because Jev puts most tweets near 0 or 1, and the hard calls happen in the squeezed middle.</p>
+    <div class="grid-lab">
+      <div class="panel strip stack">
+        <div id="strip"></div>
+        <div class="range-row">
+          <label for="thr-range" class="small muted">Threshold</label>
+          <input id="thr-range" type="range" min="0" max="1000" step="1">
+          <span class="mono small" id="thr-val"></span>
+        </div>
+        <div class="legend"><span><i style="background:var(--noise)"></i>Noise</span><span><i style="background:var(--unsure)"></i>Debatable</span><span><i style="background:var(--fine)"></i>Fine</span><span>Shaded = hidden</span></div>
+        <div class="stack" style="gap:6px">
+          <h3>Changed sides on your last drag</h3>
+          <div class="flips" id="flips"><span class="small muted">Drag the line to see tweets cross it.</span></div>
+        </div>
+      </div>
+      <aside class="panel outcome" aria-live="polite">
+        <div class="eyebrow" id="out-title">Per 1,000 tweets scrolled</div>
+        <div class="big ok"><span class="v" id="o-caught">0</span><span class="ci" id="o-caught-ci"></span><span class="k">noise folded away</span></div>
+        <div class="big bad"><span class="v" id="o-wrong">0</span><span class="ci" id="o-wrong-ci"></span><span class="k">good tweets wrongly hidden</span></div>
+        <div class="big"><span class="v" id="o-leak">0</span><span class="ci"></span><span class="k">noise that still gets through</span></div>
+        <div class="big"><span class="v" id="o-deb">0</span><span class="ci"></span><span class="k">debatable tweets hidden</span></div>
+        <p class="small muted" id="o-every"></p>
+        <div class="slider-field">
+          <label for="base"><span>How much of your feed is this kind of noise?</span><span class="mono" id="base-v"></span></label>
+          <input id="base" type="range" min="0" max="150" step="1">
+          <span class="guess">Guess until the feed run</span>
+        </div>
+        <div class="slider-field">
+          <label for="deb"><span>How much is debatable for it?</span><span class="mono" id="deb-v"></span></label>
+          <input id="deb" type="range" min="0" max="100" step="1">
+          <span class="guess">Guess until the feed run</span>
+        </div>
+        <p class="small muted">Ranges are 90% intervals from how few synthetic tweets sit on each side. With about 100 fine tweets per mute, one mistake moves the estimate by roughly 10 per 1,000. The synthetic set can show the shape but can't pin the number. Only thousands of real tweets can.</p>
+      </aside>
+    </div>
+    <div class="two">
+      <div class="stack"><h3>Wrongly hidden at this setting</h3><div class="list" id="list-wrong"></div></div>
+      <div class="stack"><h3>Noise that gets through</h3><div class="list" id="list-leak"></div></div>
+    </div>
+  </section>
+
+  <section class="stack" aria-labelledby="h-feed">
+    <h2 id="h-feed">What it feels like in a scroll</h2>
+    <p class="col muted">Forty tweets drawn at the rates you set above, with every mute that's switched on, at each mute's current line. Real noise is rare, so most scrolls hide little. What you'll notice is whether a hide bar shows up where you'd have liked to read on. Bars don't say which hides were mistakes. You only find out by clicking Show, and most people never do.</p>
+    <div class="row" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button class="btn primary" type="button" id="reroll">Draw another 40</button>
+      <label class="toggle"><input type="checkbox" id="reveal"> Mark which hides were mistakes</label>
+      <span class="small muted" id="feed-sum"></span>
+    </div>
+    <div class="feeds">
+      <div class="feed" id="feed-before"></div>
+      <div class="feed" id="feed-after"></div>
+    </div>
+  </section>
+
+  <section class="stack" aria-labelledby="h-design">
+    <h2 id="h-design">Two ways of asking, same tweets</h2>
+    <p class="col muted">Each dot is one tweet scored both ways for the selected mute. Dots off the diagonal are where the two designs disagree. The table scores how cleanly each design separates noise from fine tweets (AUC: 1.0 is perfect, 0.5 is a coin flip), leaving debatable tweets out.</p>
+    <div class="two">
+      <div class="panel chart" id="scatter"></div>
+      <div class="panel stack">
+        <div class="tbl-wrap"><table id="auc-table"></table></div>
+        <p class="small muted" id="auc-note"></p>
+      </div>
+    </div>
+    <div class="stack"><h3>Where they disagree most</h3><div class="list" id="list-disagree" style="max-height:340px"></div></div>
+  </section>
+
+  <section class="stack" aria-labelledby="h-nb">
+    <h2 id="h-nb">The same tweet in different company</h2>
+    <p class="col muted">This is why the extension now sends one tweet per call. Each row is a debatable tweet. Black is its noise score asked alone. The coloured marks are the same tweet asked in a batch of ten, next to loud noise (orange), next to clean tweets (blue), or a mix (yellow). Long rows mean the neighbours decided the answer.</p>
+    <div class="panel chart" id="dumbbell"></div>
+    <p class="small muted" id="nb-sum"></p>
+  </section>
+
+  <section class="stack" aria-labelledby="h-more">
+    <h2 id="h-more">More mutes, more mistakes</h2>
+    <p class="col muted">Every mute you add is another chance to hide a fine tweet. Switch mutes off in the toolbar to see how the combined count of wrongly hidden tweets moves for each design at the current lines.</p>
+    <div class="two">
+      <div class="panel chart" id="multi"></div>
+      <div class="panel stack small" id="multi-text"></div>
+    </div>
+  </section>
+
+  <section class="stack" aria-labelledby="h-ship">
+    <h2 id="h-ship">Which mutes are worth shipping</h2>
+    <p class="col muted">Each verdict uses the selected design. It finds the line that catches the most noise while wrongly hiding at most 2 good tweets per 1,000 (at your base-rate guesses), then checks how much of the mute's territory is debatable even to a careful reader.</p>
+    <div class="panel tbl-wrap"><table id="ship-table"></table></div>
+  </section>
+
+  <section class="stack" aria-labelledby="h-unk">
+    <h2 id="h-unk">What this page can't tell you yet</h2>
+    <div class="unknowns" id="unknowns"></div>
+  </section>
+
+  <section class="rec" aria-labelledby="h-rec">
+    <div class="eyebrow">Recommendation</div>
+    <h2 id="h-rec">Ship one question per tweet, three mutes on by default, and treat dunking as a taste setting</h2>
+    <ol>
+      <li><b>Ask one question per tweet, never a batch.</b> Batching is settled: 11 of 40 borderline tweets switched sides depending only on their neighbours, while the same tweet asked alone twice barely moved.</li>
+      <li><b>Default to the single "keep, or which mute?" question.</b> On these tweets it hid 1 of 95 fine tweets at a 0.5 line. Yes/no per mute hid 3, and its dunking mute alone flagged 10 of 149 fine posts, mostly sharp opinions. The single question pays for that caution by missing about a third of the vague AI hype. That's the trade I'd take, because a wrong hide is invisible and a miss isn't.</li>
+      <li><b>On by default:</b> political rage bait, crypto shilling, engagement bait. <b>Opt-in:</b> vague AI hype. <b>Not a default:</b> dunking. Most of its territory is debatable even to me, so it should be a mute people add and tune themselves.</li>
+      <li><b>Set lines from the real run, not from this page.</b> With about 150 fine synthetic tweets per mute, the 90% range on "wrongly hidden per 1,000" spans roughly 0–20. The run needs thousands of real fine tweets to bring that under 2.</li>
+      <li><b>Pin the model version and cap hides per mute per day</b>, so a model update or a news cycle can't quietly change what you see.</li>
+    </ol>
+    <p class="q"><b>The one question I'd most want answered:</b> How much worse is one good tweet wrongly hidden than one piece of noise getting through: 5 times, 20 times, 100 times? That ratio sets every line, more than anything else on this page.</p>
+  </section>
+</div>
+
+<div id="tip" class="tw" hidden></div>
+
+<script>
+const DATA = /*DATA*/null;
+const M = DATA.mutes.length;
+const SHORT = DATA.short;
+const SER = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)'];
+const T = DATA.tweets;
+const byId = Object.fromEntries(T.map((t) => [t.id, t]));
+
+// ---------- state ----------
+const store = { get(k, d) { try { const v = localStorage.getItem('tl:' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('tl:' + k, JSON.stringify(v)); } catch {} } };
+const S = {
+  design: store.get('design', 'choice'),
+  mute: store.get('mute', 0),                // 0..M-1 or 'all'
+  on: store.get('on', Array(M).fill(true)),
+  thr: store.get('thr', { choice: Array(M).fill(0.5), noul: Array(M).fill(0.5) }),
+  base: store.get('base2', [0.01, 0.005, 0.015, 0.03, 0.03]),
+  deb: store.get('deb2', [0.01, 0.005, 0.015, 0.03, 0.04]),
+  seed: 1,
+};
+const save = () => { for (const k of ['design', 'mute', 'on', 'thr']) store.set(k, S[k]); store.set('base2', S.base); store.set('deb2', S.deb); };
+
+const score = (t, j, d = S.design) => (d === 'choice' ? t.ch[j] : t.no[j]);
+const hiddenBy = (t, d = S.design) => { const r = []; for (let j = 0; j < M; j++) if (S.on[j] && score(t, j, d) >= S.thr[d][j]) r.push(j); return r; };
+const lab = (t, j) => t.l[j];
+const fineAll = (t) => t.l.every((v) => v === 0);
+
+// ---------- maths ----------
+const LO = Math.log(0.005 / 0.995), HI = -LO;
+const logit = (p) => Math.log(Math.min(0.995, Math.max(0.005, p)) / (1 - Math.min(0.995, Math.max(0.005, p))));
+const pos = (p) => (logit(p) - LO) / (HI - LO);
+const unpos = (u) => 1 / (1 + Math.exp(-(LO + u * (HI - LO))));
+function wilson(k, n, z = 1.645) {
+  if (!n) return [0, 1];
+  const p = k / n, d = 1 + z * z / n, c = p + z * z / (2 * n), w = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n));
+  return [Math.max(0, (c - w) / d), Math.min(1, (c + w) / d)];
+}
+function rates(j, thr, d = S.design) {
+  let tp = 0, P = 0, fp = 0, N = 0, dh = 0, D = 0;
+  for (const t of T) {
+    const s = score(t, j, d), h = s >= thr, l = lab(t, j);
+    if (l === 1) { P++; if (h) tp++; } else if (l === 0) { N++; if (h) fp++; } else { D++; if (h) dh++; }
+  }
+  return { tp, P, fp, N, dh, D, tpr: P ? tp / P : 0, fpr: N ? fp / N : 0, dhr: D ? dh / D : 0 };
+}
+function auc(j, d) {
+  const pos_ = [], neg = [];
+  for (const t of T) { const l = lab(t, j); if (l === 1) pos_.push(score(t, j, d)); else if (l === 0) neg.push(score(t, j, d)); }
+  let s = 0; for (const a of pos_) for (const b of neg) s += a > b ? 1 : a === b ? 0.5 : 0;
+  return pos_.length && neg.length ? s / (pos_.length * neg.length) : NaN;
+}
+const fmt = (x) => (x >= 10 ? Math.round(x).toString() : x >= 1 ? x.toFixed(1) : x > 0 ? x.toFixed(2) : '0');
+const pct = (x) => (x * 100 < 1 && x > 0 ? (x * 100).toFixed(1) : Math.round(x * 100)) + '%';
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---------- provenance ----------
+(function () {
+  const m = DATA.meta, n = T.length;
+  const kinds = { clean: 0, clear: 0, borderline: 0 }; T.forEach((t) => kinds[t.k]++);
+  document.getElementById('prov').innerHTML = [
+    `${n} synthetic tweets`, `${kinds.clear} clear noise · ${kinds.borderline} borderline · ${kinds.clean} fine`,
+    `scored by ${m.model}`, `${m.calls.toLocaleString()} calls, p50 ${m.latencyP50} ms`,
+  ].map((s) => `<span class="chip">${s}</span>`).join('') + '<span class="chip warn">base rates are guesses</span><span class="chip warn">labels are mine, not yours</span>';
+})();
+
+// ---------- controls ----------
+function renderControls() {
+  document.querySelectorAll('#design-seg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.design === S.design)));
+  const tabs = document.getElementById('mute-tabs');
+  tabs.innerHTML = SHORT.map((s, j) => `<button type="button" class="mute-tab ${S.on[j] ? '' : 'off'}" data-j="${j}" aria-pressed="${S.mute === j}" title="${esc(DATA.mutes[j])}. Double-click to switch it on or off."><span class="sw" style="background:${SER[j]}"></span><span class="name">${s}</span></button>`).join('')
+    + `<button type="button" class="mute-tab" data-j="all" aria-pressed="${S.mute === 'all'}">All on</button>`;
+}
+document.getElementById('design-seg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; S.design = b.dataset.design; renderAll(); });
+document.getElementById('mute-tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; S.mute = b.dataset.j === 'all' ? 'all' : Number(b.dataset.j); renderAll(); });
+document.getElementById('mute-tabs').addEventListener('dblclick', (e) => { const b = e.target.closest('button'); if (!b || b.dataset.j === 'all') return; const j = Number(b.dataset.j); S.on[j] = !S.on[j]; renderAll(); });
+
+// ---------- tooltip ----------
+const tip = document.getElementById('tip');
+function card(t, extra = '') {
+  const tags = t.l.map((v, j) => (v ? `<span class="tag ${v === 1 ? 'l1' : 'l05'}">${SHORT[j]}${v === 1 ? '' : '?'}</span>` : '')).join('');
+  return `<div class="who">${esc(t.a)}${t.c ? `<span class="ctx">${esc(t.c)}</span>` : ''}${t.m.length ? `<span class="ctx">[${t.m.join(', ')}]</span>` : ''}</div>
+    <div class="txt">${esc(t.x)}</div>${t.q ? `<div class="qt">${esc(t.q)}</div>` : ''}
+    <div class="meta">${tags || '<span class="tag">fine</span>'}${extra}</div>${t.n ? `<div class="small muted" style="margin-top:6px">${esc(t.n)}</div>` : ''}`;
+}
+function scoreTags(t, j) {
+  return `<span class="tag">choice ${score(t, j, 'choice').toFixed(2)}</span><span class="tag">yes/no ${score(t, j, 'noul').toFixed(2)}</span>`;
+}
+function showTip(t, j, ev) {
+  tip.innerHTML = card(t, scoreTags(t, j)); tip.hidden = false;
+  const r = tip.getBoundingClientRect(); let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = Math.max(8, ev.clientY - r.height - 14);
+  tip.style.left = Math.max(8, x) + 'px'; tip.style.top = y + 'px';
+}
+const hideTip = () => { tip.hidden = true; };
+
+// ---------- strip chart ----------
+const W = 760, PADL = 92, PADR = 18, LANE = 62, TOP = 30, BOT = 52;
+const lanes = [[1, 'Noise'], [0.5, 'Debatable'], [0, 'Fine']];
+let lastHidden = new Set();
+function curMute() { return S.mute === 'all' ? null : S.mute; }
+function stripScore(t) {
+  // In "all" view each tweet sits at its strongest mute (score relative to that mute's line).
+  const j = curMute();
+  if (j !== null) return score(t, j);
+  let best = 0; for (let k = 0; k < M; k++) if (S.on[k]) best = Math.max(best, score(t, k) - S.thr[S.design][k] + 0.5);
+  return Math.min(0.999, Math.max(0.001, best));
+}
+function stripLabel(t) { const j = curMute(); if (j !== null) return lab(t, j); return t.l.some((v, k) => S.on[k] && v === 1) ? 1 : t.l.some((v, k) => S.on[k] && v === 0.5) ? 0.5 : 0; }
+function stripThr() { const j = curMute(); return j === null ? 0.5 : S.thr[S.design][j]; }
+function setStripThr(v) {
+  const j = curMute();
+  if (j === null) { // shift every line by the same amount in log-odds
+    const d = logit(v) - logit(0.5);
+    for (let k = 0; k < M; k++) S.thr[S.design][k] = Math.min(0.99, Math.max(0.01, 1 / (1 + Math.exp(-(logit(allBase[k]) + d)))));
+  } else S.thr[S.design][j] = Math.min(0.99, Math.max(0.01, v));
+}
+let allBase = null;
+function renderStrip(flash) {
+  const plotW = W - PADL - PADR, H = TOP + LANE * 3 + BOT;
+  const X = (p) => PADL + pos(p) * plotW;
+  const thr = stripThr();
+  const placed = [];
+  const dots = T.map((t) => {
+    const s = stripScore(t), l = stripLabel(t), li = lanes.findIndex((x) => x[0] === l);
+    const cx = X(s), cyBase = TOP + li * LANE + LANE / 2;
+    let cy = cyBase;
+    for (let k = 0; k < 40; k++) {
+      const off = (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 7;
+      cy = cyBase + off;
+      if (Math.abs(off) > LANE / 2 - 6) { cy = cyBase + (Math.random() - 0.5) * (LANE - 14); break; }
+      if (!placed.some((p) => p.li === li && Math.hypot(p.x - cx, p.y - cy) < 9.5)) break;
+    }
+    placed.push({ x: cx, y: cy, li });
+    return { t, cx, cy, l, hidden: S.mute === 'all' ? hiddenBy(t).length > 0 : s >= thr };
+  });
+  const ticks = [0.01, 0.05, 0.2, 0.5, 0.8, 0.95, 0.99];
+  const tx = X(thr);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Strip chart of Jev scores by label with a draggable threshold">`;
+  svg += `<rect class="hidden-zone" x="${tx}" y="${TOP - 8}" width="${W - PADR - tx}" height="${LANE * 3 + 8}"/>`;
+  for (const p of ticks) svg += `<line class="gridline" x1="${X(p)}" x2="${X(p)}" y1="${TOP - 8}" y2="${TOP + LANE * 3}"/><g class="axis"><text x="${X(p)}" y="${H - 30}" text-anchor="middle">${p}</text></g>`;
+  lanes.forEach(([, name], i) => { svg += `<text class="lane-label" x="0" y="${TOP + i * LANE + LANE / 2 + 4}">${name}</text>`; if (i) svg += `<line class="gridline" x1="${PADL}" x2="${W - PADR}" y1="${TOP + i * LANE}" y2="${TOP + i * LANE}"/>`; });
+  svg += `<g class="axis"><text x="${PADL}" y="${H - 8}">${S.mute === 'all' ? 'strongest mute, relative to its own line' : (S.design === 'choice' ? 'P(' + SHORT[S.mute] + ') from the single choice question' : 'P(yes) for ' + SHORT[S.mute])}</text></g>`;
+  for (const d of dots) svg += `<circle class="dot ${d.l === 1 ? 'l1' : d.l === 0.5 ? 'l05' : 'l0'} ${flash && flash.has(d.t.id) ? 'flash hit-ring' : ''}" data-id="${d.t.id}" cx="${d.cx.toFixed(1)}" cy="${d.cy.toFixed(1)}" r="${d.hidden ? 5 : 4}" ${d.hidden ? '' : 'fill-opacity="0.55"'}/>`;
+  svg += `<line class="thr-line" x1="${tx}" x2="${tx}" y1="${TOP - 14}" y2="${TOP + LANE * 3}"/>`;
+  svg += `<rect class="thr-handle" id="thr-handle" x="${tx - 7}" y="${TOP - 22}" width="14" height="14" rx="3" tabindex="0" role="slider" aria-label="Threshold" aria-valuenow="${thr.toFixed(2)}"/>`;
+  svg += `<text class="thr-text" x="${Math.min(tx + 10, W - PADR - 60)}" y="${TOP - 11}">${S.mute === 'all' ? 'all lines' : thr.toFixed(2)}</text></svg>`;
+  document.getElementById('strip').innerHTML = svg;
+  const r = document.getElementById('thr-range'); r.value = String(Math.round(pos(thr) * 1000));
+  document.getElementById('thr-val').textContent = S.mute === 'all' ? 'shifts every line' : thr.toFixed(2);
+}
+// drag
+(function () {
+  const host = document.getElementById('strip');
+  let dragging = false, before = null;
+  const toThr = (ev) => { const svg = host.querySelector('svg'); const r = svg.getBoundingClientRect(); const x = (ev.clientX - r.left) * (W / r.width); return unpos(Math.min(1, Math.max(0, (x - PADL) / (W - PADL - PADR)))); };
+  host.addEventListener('pointerdown', (ev) => {
+    if (ev.target.classList.contains('dot')) return;
+    dragging = true; before = currentHiddenIds(); host.setPointerCapture(ev.pointerId);
+    if (S.mute === 'all') allBase = [...S.thr[S.design]];
+    setStripThr(toThr(ev)); renderLive();
+  });
+  host.addEventListener('pointermove', (ev) => {
+    if (dragging) { setStripThr(toThr(ev)); renderLive(); return; }
+    const d = ev.target.closest('.dot'); if (d) showTip(byId[d.dataset.id], curMute() ?? strongest(byId[d.dataset.id]), ev); else hideTip();
+  });
+  const end = () => { if (!dragging) return; dragging = false; finishDrag(before); };
+  host.addEventListener('pointerup', end); host.addEventListener('pointercancel', end);
+  host.addEventListener('pointerleave', hideTip);
+  host.addEventListener('keydown', (ev) => {
+    if (ev.target.id !== 'thr-handle') return;
+    const step = ev.shiftKey ? 0.1 : 0.02; const b = currentHiddenIds();
+    if (S.mute === 'all') allBase = [...S.thr[S.design]];
+    let u = pos(stripThr());
+    if (ev.key === 'ArrowRight') u += step; else if (ev.key === 'ArrowLeft') u -= step; else return;
+    ev.preventDefault(); setStripThr(unpos(Math.min(1, Math.max(0, u)))); finishDrag(b); document.getElementById('thr-handle')?.focus();
+  });
+  const range = document.getElementById('thr-range');
+  let rb = null;
+  range.addEventListener('pointerdown', () => { rb = currentHiddenIds(); if (S.mute === 'all') allBase = [...S.thr[S.design]]; });
+  range.addEventListener('input', () => { if (!rb) { rb = currentHiddenIds(); if (S.mute === 'all') allBase = [...S.thr[S.design]]; } setStripThr(unpos(range.value / 1000)); renderLive(); });
+  range.addEventListener('change', () => { finishDrag(rb); rb = null; });
+})();
+function strongest(t) { let b = 0, bj = 0; for (let k = 0; k < M; k++) if (score(t, k) > b) { b = score(t, k); bj = k; } return bj; }
+function currentHiddenIds() { const j = curMute(); return new Set(T.filter((t) => (j === null ? hiddenBy(t).length : score(t, j) >= S.thr[S.design][j])).map((t) => t.id)); }
+function finishDrag(before) {
+  const after = currentHiddenIds(); const changed = new Set();
+  const toH = [...after].filter((id) => !before.has(id)), toS = [...before].filter((id) => !after.has(id));
+  toH.forEach((id) => changed.add(id)); toS.forEach((id) => changed.add(id));
+  const flips = document.getElementById('flips');
+  if (!changed.size) flips.innerHTML = '<span class="small muted">Nothing crossed the line on that move.</span>';
+  else flips.innerHTML = toH.map((id) => `<button type="button" class="flip to-hidden" data-id="${id}" title="${esc(byId[id].x)}">→ hidden · ${esc(byId[id].x.slice(0, 42))}</button>`).join('')
+    + toS.map((id) => `<button type="button" class="flip to-shown" data-id="${id}" title="${esc(byId[id].x)}">← shown · ${esc(byId[id].x.slice(0, 42))}</button>`).join('');
+  save(); renderAll(changed);
+}
+document.getElementById('flips').addEventListener('pointermove', (ev) => { const b = ev.target.closest('.flip'); if (b) showTip(byId[b.dataset.id], curMute() ?? strongest(byId[b.dataset.id]), ev); });
+document.getElementById('flips').addEventListener('pointerleave', hideTip);
+
+// ---------- outcome ----------
+function outcomeFor(j) {
+  const r = rates(j, S.thr[S.design][j]);
+  const p = S.base[j], d = S.deb[j], good = 1 - p - d;
+  const fpCI = wilson(r.fp, r.N), tpCI = wilson(r.tp, r.P);
+  return { r, caught: 1000 * p * r.tpr, caughtCI: tpCI.map((x) => 1000 * p * x), wrong: 1000 * good * r.fpr, wrongCI: fpCI.map((x) => 1000 * good * x), leak: 1000 * p * (1 - r.tpr), deb: 1000 * d * r.dhr };
+}
+function outcomeAll() {
+  // Combined across switched-on mutes. A fine tweet is wrongly hidden if any line fires on it.
+  let N = 0, fp = 0; for (const t of T) if (fineAll(t)) { N++; if (hiddenBy(t).length) fp++; }
+  let caught = 0, leak = 0, deb = 0, cl = 0, ch = 0;
+  let pSum = 0, dSum = 0;
+  for (let j = 0; j < M; j++) if (S.on[j]) { const o = outcomeFor(j); caught += o.caught; leak += o.leak; deb += o.deb; cl += o.caughtCI[0]; ch += o.caughtCI[1]; pSum += S.base[j]; dSum += S.deb[j]; }
+  const good = Math.max(0, 1 - pSum - dSum), ci = wilson(fp, N);
+  return { caught, caughtCI: [cl, ch], wrong: 1000 * good * (N ? fp / N : 0), wrongCI: ci.map((x) => 1000 * good * x), leak, deb, fp, N };
+}
+function renderOutcome() {
+  const j = curMute();
+  const o = j === null ? outcomeAll() : outcomeFor(j);
+  document.getElementById('out-title').textContent = j === null ? 'Per 1,000 tweets · all switched-on mutes' : `Per 1,000 tweets · ${SHORT[j]}`;
+  document.getElementById('o-caught').textContent = fmt(o.caught);
+  document.getElementById('o-caught-ci').textContent = `${fmt(o.caughtCI[0])}–${fmt(o.caughtCI[1])}`;
+  document.getElementById('o-wrong').textContent = fmt(o.wrong);
+  document.getElementById('o-wrong-ci').textContent = `${fmt(o.wrongCI[0])}–${fmt(o.wrongCI[1])}`;
+  document.getElementById('o-leak').textContent = fmt(o.leak);
+  document.getElementById('o-deb').textContent = fmt(o.deb);
+  const every = o.wrong > 0 ? Math.round(1000 / o.wrong) : null;
+  const prec = o.caught + o.wrong > 0 ? o.caught / (o.caught + o.wrong + o.deb * 0.5) : null;
+  document.getElementById('o-every').innerHTML = (every ? `About one good tweet hidden every <b class="mono">${every.toLocaleString()}</b> tweets (about ${Math.max(1, Math.round(every / 5))} screens). ` : 'No fine synthetic tweet is hidden at this line, but the 90% range above still allows some. ')
+    + (prec !== null ? `Of the hide bars you'd see, about <b class="mono">${Math.round(prec * 100)}%</b> would be real noise.` : '');
+  const bj = j === null ? 0 : j;
+  const base = document.getElementById('base'), deb = document.getElementById('deb');
+  base.disabled = deb.disabled = j === null;
+  base.value = String(Math.round(S.base[bj] * 1000)); deb.value = String(Math.round(S.deb[bj] * 1000));
+  document.getElementById('base-v').textContent = j === null ? '—' : pct(S.base[bj]);
+  document.getElementById('deb-v').textContent = j === null ? '—' : pct(S.deb[bj]);
+}
+document.getElementById('base').addEventListener('input', (e) => { const j = curMute(); if (j === null) return; S.base[j] = e.target.value / 1000; save(); renderAll(); });
+document.getElementById('deb').addEventListener('input', (e) => { const j = curMute(); if (j === null) return; S.deb[j] = e.target.value / 1000; save(); renderAll(); });
+
+function renderLists() {
+  const j = curMute();
+  const wrong = T.filter((t) => (j === null ? fineAll(t) && hiddenBy(t).length : lab(t, j) === 0 && score(t, j) >= S.thr[S.design][j]));
+  const leak = T.filter((t) => (j === null ? t.l.some((v, k) => S.on[k] && v === 1) && !hiddenBy(t).length : lab(t, j) === 1 && score(t, j) < S.thr[S.design][j]));
+  const sc = (t) => (j === null ? Math.max(...t.l.map((_, k) => score(t, k))) : score(t, j));
+  wrong.sort((a, b) => sc(b) - sc(a)); leak.sort((a, b) => sc(b) - sc(a));
+  const render = (arr, empty) => (arr.length ? arr.map((t) => `<div class="tw">${card(t, j === null ? '' : scoreTags(t, j))}</div>`).join('') : `<div class="empty">${empty}</div>`);
+  document.getElementById('list-wrong').innerHTML = render(wrong, 'No fine tweet is hidden at this line.');
+  document.getElementById('list-leak').innerHTML = render(leak, 'Every tweet labelled noise is caught at this line.');
+}
+
+// ---------- feed ----------
+function rng(seed) { let s = seed >>> 0; return () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function drawFeed() {
+  const r = rng(S.seed * 9973);
+  const fine = T.filter(fineAll), pools = [...Array(M)].map((_, j) => T.filter((t) => t.l[j] === 1)), debs = [...Array(M)].map((_, j) => T.filter((t) => t.l[j] === 0.5));
+  const out = []; const used = new Set();
+  const take = (arr) => { const c = arr.filter((t) => !used.has(t.id)); const p = (c.length ? c : arr); const t = p[Math.floor(r() * p.length)]; used.add(t.id); return t; };
+  for (let i = 0; i < 40; i++) {
+    let u = r(), picked = null;
+    for (let j = 0; j < M && !picked; j++) { if (u < S.base[j]) picked = take(pools[j]); u -= S.base[j]; }
+    for (let j = 0; j < M && !picked; j++) { if (u < S.deb[j]) picked = take(debs[j]); u -= S.deb[j]; }
+    out.push(picked || take(fine));
+  }
+  return out;
+}
+let FEED = null;
+function renderFeed() {
+  if (!FEED) FEED = drawFeed();
+  const reveal = document.getElementById('reveal').checked;
+  const item = (t, cls = '') => `<div class="fitem ${cls}"><div class="who">${esc(t.a)}${t.c ? ` · ${esc(t.c)}` : ''}</div><div class="txt">${esc(t.x)}</div>${t.q ? `<div class="tw" style="margin-top:6px;padding:7px 9px"><div class="txt small muted">${esc(t.q)}</div></div>` : ''}</div>`;
+  let hid = 0, wrong = 0, leaks = 0;
+  const after = FEED.map((t) => {
+    const h = hiddenBy(t);
+    const isNoise = t.l.some((v, k) => S.on[k] && v === 1);
+    if (!h.length) { if (isNoise) leaks++; return item(t, reveal && isNoise ? 'leak' : ''); }
+    hid++; const mistake = fineAll(t); if (mistake) wrong++;
+    return `<div class="fbar"><span class="why">Hidden by Jev · ${esc(DATA.mutes[h[0]])}</span>${reveal ? (mistake ? '<span class="mistake">wanted this</span>' : t.l.some((v) => v === 0.5) && !isNoise ? '<span class="mistake" style="color:var(--unsure)">debatable</span>' : '') : '<span class="small" style="color:var(--accent);font-weight:600">Show</span>'}</div>`;
+  });
+  document.getElementById('feed-before').innerHTML = `<div class="feed-head"><b>Before</b><span class="small muted">40 tweets</span></div>` + FEED.map((t) => item(t)).join('');
+  document.getElementById('feed-after').innerHTML = `<div class="feed-head"><b>After</b><span class="small muted">${hid} hidden</span></div>` + after.join('');
+  document.getElementById('feed-sum').textContent = `${hid} hidden · ${wrong} of them fine · ${leaks} noise got through${reveal ? ' (marked in orange)' : ''}`;
+}
+document.getElementById('reroll').addEventListener('click', () => { S.seed++; FEED = null; renderFeed(); });
+document.getElementById('reveal').addEventListener('change', renderFeed);
+
+// ---------- design comparison ----------
+function renderScatter() {
+  const j = curMute() ?? 0, w = 420, h = 420, p = 44, X = (v) => p + pos(v) * (w - p - 12), Y = (v) => h - p - pos(v) * (h - p - 12);
+  let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Choice score against yes/no score for ${SHORT[j]}">`;
+  for (const v of [0.01, 0.2, 0.5, 0.8, 0.99]) s += `<line class="gridline" x1="${X(v)}" x2="${X(v)}" y1="12" y2="${h - p}"/><line class="gridline" x1="${p}" x2="${w - 12}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${X(v)}" y="${h - p + 16}" text-anchor="middle">${v}</text><text x="${p - 6}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`;
+  s += `<line x1="${X(0.005)}" y1="${Y(0.005)}" x2="${X(0.995)}" y2="${Y(0.995)}" stroke="var(--line-2)" stroke-dasharray="4 4"/>`;
+  s += `<line x1="${X(S.thr.choice[j])}" x2="${X(S.thr.choice[j])}" y1="12" y2="${h - p}" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="2 3"/><line x1="${p}" x2="${w - 12}" y1="${Y(S.thr.noul[j])}" y2="${Y(S.thr.noul[j])}" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="2 3"/>`;
+  for (const t of T) { const l = lab(t, j); s += `<circle class="dot ${l === 1 ? 'l1' : l === 0.5 ? 'l05' : 'l0'}" data-id="${t.id}" cx="${X(t.ch[j]).toFixed(1)}" cy="${Y(t.no[j]).toFixed(1)}" r="4.2" fill-opacity="0.8"/>`; }
+  s += `<text x="${w / 2}" y="${h - 6}" text-anchor="middle">one question: P(${SHORT[j]})</text><text transform="translate(12 ${h / 2}) rotate(-90)" text-anchor="middle">yes/no: P(yes)</text></svg>`;
+  const el = document.getElementById('scatter'); el.innerHTML = `<h3 style="margin-bottom:8px">${SHORT[j]}${curMute() === null ? ' (pick a mute to change)' : ''}</h3>` + s;
+  el.onpointermove = (ev) => { const d = ev.target.closest('.dot'); if (d) showTip(byId[d.dataset.id], j, ev); else hideTip(); };
+  el.onpointerleave = hideTip;
+
+  let rows = `<thead><tr><th>Mute</th><th>One question</th><th>Yes/no</th><th>Better</th></tr></thead><tbody>`;
+  let wins = { choice: 0, noul: 0 };
+  for (let k = 0; k < M; k++) {
+    const a = auc(k, 'choice'), b = auc(k, 'noul'); const better = Math.abs(a - b) < 0.01 ? 'tie' : a > b ? 'one question' : 'yes/no';
+    if (better === 'one question') wins.choice++; if (better === 'yes/no') wins.noul++;
+    rows += `<tr><td><span class="sw" style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${SER[k]};margin-right:7px"></span>${SHORT[k]}</td><td class="num">${a.toFixed(3)}</td><td class="num">${b.toFixed(3)}</td><td>${better}</td></tr>`;
+  }
+  document.getElementById('auc-table').innerHTML = rows + '</tbody>';
+  document.getElementById('auc-note').textContent = `On these tweets one question separates better on ${wins.choice} mutes and yes/no on ${wins.noul}. Differences under about 0.03 are within what a different set of synthetic tweets could flip.`;
+
+  const dis = [...T].sort((a, b) => Math.abs(logit(b.ch[j]) - logit(b.no[j])) - Math.abs(logit(a.ch[j]) - logit(a.no[j]))).slice(0, 8);
+  document.getElementById('list-disagree').innerHTML = dis.map((t) => `<div class="tw">${card(t, scoreTags(t, j))}</div>`).join('');
+}
+
+// ---------- neighbours ----------
+function renderDumbbell() {
+  const rows = DATA.neighbours.map((n) => { const t = byId[n.id]; const all = [...n.loud, ...n.clean, ...n.mixed, t.cha]; return { t, n, lo: Math.min(...all), hi: Math.max(...all) }; })
+    .sort((a, b) => (logit(b.hi) - logit(b.lo)) - (logit(a.hi) - logit(a.lo)));
+  const w = 760, rh = 22, p = 300, h = rows.length * rh + 40, X = (v) => p + pos(v) * (w - p - 16);
+  let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Each borderline tweet's noise score alone and in three kinds of batch">`;
+  for (const v of [0.01, 0.05, 0.2, 0.5, 0.8, 0.95, 0.99]) s += `<line class="gridline" x1="${X(v)}" x2="${X(v)}" y1="6" y2="${h - 28}"/><text x="${X(v)}" y="${h - 12}" text-anchor="middle">${v}</text>`;
+  let shifts = [], flipCount = 0;
+  rows.forEach((r, i) => {
+    const y = 14 + i * rh; const label = r.t.x.length > 44 ? r.t.x.slice(0, 43) + '…' : r.t.x;
+    s += `<g class="db-row" data-id="${r.t.id}"><text x="0" y="${y + 4}" style="fill:var(--ink-2)">${esc(label)}</text><line class="conn" x1="${X(r.lo)}" x2="${X(r.hi)}" y1="${y}" y2="${y}"/>`;
+    for (const [k, cls] of [['loud', 'mark-loud'], ['clean', 'mark-clean'], ['mixed', 'mark-mixed']]) for (const v of r.n[k]) { s += `<circle class="${cls}" cx="${X(v).toFixed(1)}" cy="${y}" r="4"/>`; shifts.push(Math.abs(v - r.t.cha)); }
+    s += `<rect class="mark-alone" x="${X(r.t.cha) - 1.5}" y="${y - 7}" width="3" height="14"/></g>`;
+    const all = [...r.n.loud, ...r.n.clean, ...r.n.mixed, r.t.cha]; if (Math.min(...all) < 0.5 && Math.max(...all) >= 0.5) flipCount++;
+  });
+  s += '</svg>';
+  const el = document.getElementById('dumbbell'); el.innerHTML = `<div class="legend" style="margin-bottom:8px"><span><i style="background:var(--ink);border-radius:1px"></i>Asked alone</span><span><i style="background:var(--noise)"></i>Next to loud noise</span><span><i style="background:var(--accent)"></i>Next to clean tweets</span><span><i style="background:var(--unsure)"></i>Mixed</span></div><div class="tbl-wrap">${s}</div>`;
+  el.onpointermove = (ev) => { const g = ev.target.closest('.db-row'); if (g) showTip(byId[g.dataset.id], strongest(byId[g.dataset.id]), ev); else hideTip(); };
+  el.onpointerleave = hideTip;
+  shifts.sort((a, b) => a - b);
+  document.getElementById('nb-sum').textContent = `Across ${rows.length} borderline tweets, the batch moved the score by ${shifts[shifts.length >> 1].toFixed(2)} at the median and ${shifts[Math.floor(shifts.length * 0.9)].toFixed(2)} at the 90th percentile. ${flipCount} of ${rows.length} landed on both sides of 0.5 depending only on their neighbours. Asked alone twice, the same tweet's score moved by a median of ${median(T.map((t) => Math.abs(t.rep - t.cha))).toFixed(3)}.`;
+}
+const median = (a) => { const b = [...a].sort((x, y) => x - y); return b[b.length >> 1]; };
+
+// ---------- multiplicity ----------
+function renderMulti() {
+  const fine = T.filter(fineAll);
+  const res = { choice: [], noul: [] };
+  for (const d of ['choice', 'noul']) {
+    const order = [...Array(M).keys()].filter((j) => S.on[j]);
+    for (let n = 1; n <= order.length; n++) {
+      const set = order.slice(0, n);
+      const fp = fine.filter((t) => set.some((j) => score(t, j, d) >= S.thr[d][j])).length;
+      res[d].push(fp / fine.length);
+    }
+  }
+  const n = res.choice.length; const w = 420, h = 260, p = 46;
+  const maxY = Math.max(0.02, ...res.choice, ...res.noul) * 1.15;
+  const X = (i) => p + (n === 1 ? (w - p - 20) / 2 : (i * (w - p - 20)) / (n - 1)), Y = (v) => h - 36 - (v / maxY) * (h - 36 - 14);
+  let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Share of fine tweets wrongly hidden as mutes are added">`;
+  for (let k = 0; k <= 4; k++) { const v = (maxY * k) / 4; s += `<line class="gridline" x1="${p}" x2="${w - 12}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${p - 6}" y="${Y(v) + 4}" text-anchor="end">${(v * 100).toFixed(1)}%</text>`; }
+  for (let i = 0; i < n; i++) s += `<text x="${X(i)}" y="${h - 14}" text-anchor="middle">${i + 1}</text>`;
+  for (const [d, col] of [['choice', 'var(--s1)'], ['noul', 'var(--s2)']]) {
+    s += `<polyline fill="none" stroke="${col}" stroke-width="2" points="${res[d].map((v, i) => `${X(i)},${Y(v)}`).join(' ')}"/>`;
+    res[d].forEach((v, i) => { s += `<circle cx="${X(i)}" cy="${Y(v)}" r="4.5" fill="${col}" stroke="var(--panel)" stroke-width="2"/>`; });
+  }
+  s += `<text x="${(w + p) / 2}" y="${h}" text-anchor="middle">mutes switched on (in toolbar order)</text></svg>`;
+  document.getElementById('multi').innerHTML = `<div class="legend" style="margin-bottom:6px"><span><i style="background:var(--s1)"></i>One question</span><span><i style="background:var(--s2)"></i>Yes/no per mute</span></div>` + s;
+  const fineTweets = T.filter(fineAll);
+  const keep3 = median(fineTweets.map((t) => 1 - t.c3a)), keep5 = median(fineTweets.map((t) => 1 - t.cha));
+  const lift = fineTweets.filter((t) => t.cha - t.c3a > 0.05).length; const maxJump = Math.max(...fineTweets.map((t) => t.cha - t.c3a));
+  document.getElementById('multi-text').innerHTML = `<p>Share of the ${fine.length} fine tweets hidden by at least one switched-on mute, at each mute's current line. With yes/no questions every mute is a separate test, so mistakes add up. With one question the mutes compete for the same probability, so adding one mostly moves probability between mutes.</p>
+    <p>The one-question design was also scored with only the first three mutes. Most fine tweets don't move. But adding the two subjective mutes pushed <b class="mono">${lift}</b> of the ${fineTweets.length} fine tweets more than 0.05 towards hidden, and the biggest jump was <b class="mono">${maxJump.toFixed(2)}</b>.</p>
+    <p class="muted">Since users write their own mutes, this curve is the one that matters for the product. A threshold set for 3 mutes is wrong for 8.</p>`;
+}
+
+// ---------- ship table ----------
+function bestLine(j, d, cap = 2) {
+  // Highest recall whose estimated wrongly-hidden-per-1000 stays under cap at the base-rate guess.
+  const good = 1 - S.base[j] - S.deb[j];
+  const cands = [...new Set(T.map((t) => score(t, j, d)))].sort((a, b) => a - b);
+  let best = { thr: 0.99, tpr: 0, wrong: 0 };
+  for (const c of cands) { const r = rates(j, c, d); const point = 1000 * good * r.fpr; if (point <= cap && r.tpr >= best.tpr) best = { thr: c, tpr: r.tpr, wrong: point, r }; } // ties go to the highest (most cautious) line
+  return best;
+}
+function renderShip() {
+  const d = S.design;
+  let rows = `<thead><tr><th>Mute</th><th>AUC</th><th>Best line</th><th>Catches</th><th>Fine hidden there</th><th>Debatable share</th><th>Verdict</th></tr></thead><tbody>`;
+  for (let j = 0; j < M; j++) {
+    const a = auc(j, d), b = bestLine(j, d);
+    const labelled = T.filter((t) => t.l[j] > 0), debShare = labelled.length ? labelled.filter((t) => t.l[j] === 0.5).length / labelled.length : 0;
+    let lvl = a >= 0.95 && b.tpr >= 0.75 ? 2 : a >= 0.88 && b.tpr >= 0.4 ? 1 : 0;
+    if (debShare > 0.6) lvl = Math.max(0, lvl - 1); // mostly a matter of taste: no line will feel right to everyone
+    const v = [['Not yet', 'v-no'], ['Opt-in, labelled beta', 'v-opt'], ['Ship on by default', 'v-ship']][lvl];
+    rows += `<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${SER[j]};margin-right:7px"></span>${esc(DATA.mutes[j])}</td><td class="num">${a.toFixed(3)}</td><td class="num">${b.thr.toFixed(2)}</td><td class="num">${pct(b.tpr)} of noise</td><td class="num">${b.r ? b.r.fp + ' of ' + b.r.N : '—'}</td><td class="num">${pct(debShare)}</td><td><span class="verdict ${v[1]}">${v[0]}</span></td></tr>`;
+  }
+  document.getElementById('ship-table').innerHTML = rows + '</tbody>';
+}
+
+// ---------- unknowns ----------
+document.getElementById('unknowns').innerHTML = [
+  [`Known unknown`, `Base rates in your feed`, `Every per-1,000 number scales with them, and I've guessed them. If political rage bait is 0.3% of your feed rather than 2%, the same line hides more good tweets than bad ones.`],
+  [`Known unknown`, `Whose taste the labels encode`, `I labelled these tweets. The Opus labellers in the real run will share my blind spots. "Dunking" and "vague AI hype" are personal calls, so a threshold tuned to my labels may not fit yours.`],
+  [`Unknown unknown`, `Users write their own mutes`, `Per-mute thresholds learned here only apply to these five sentences. Someone who writes "negativity" gets a mute nobody calibrated. The product needs a threshold rule that holds across phrasings, or a curated menu.`],
+  [`Unknown unknown`, `Mistakes you never see`, `A miss is visible: the noise is right there. A wrong hide is a grey bar you scroll past. If nobody clicks Show, the product can't learn it's wrong. Show clicks are the only live signal, and they're biased toward curiosity, not regret.`],
+  [`Unknown unknown`, `The bar is clickbait`, `"Hidden: political rage bait" is an invitation. If bars get clicked more than the tweets would have been, filtering adds friction instead of removing it. Worth testing a quieter bar, or folding runs of hides into one line.`],
+  [`Drift`, `The model moves under you`, `The extension asks for jev-latest. When TypeSafe ships a new version, every threshold here is stale overnight. Pin the version and re-run the eval before moving.`],
+  [`Drift`, `Your feed moves too`, `An election or a crypto rally can multiply a base rate tenfold in a week. The same line then hides many more tweets per day. A daily cap on hides per mute would make drift visible instead of silent.`],
+  [`Opportunity`, `Overlapping mutes are fine`, `Rage bait and dunking overlap. Under one question they split probability, so each looks weaker than it is. Judge the combined "hide" decision, not each mute alone.`],
+].map(([k, h, b]) => `<div class="unk"><span class="kind">${k}</span><h3>${h}</h3><p class="small muted">${b}</p></div>`).join('');
+
+// ---------- render ----------
+function renderLive() { renderStrip(); renderOutcome(); }
+function renderAll(flash) { renderControls(); renderStrip(flash); renderOutcome(); renderLists(); renderFeed(); renderScatter(); renderMulti(); renderShip(); save(); }
+renderAll();
+renderDumbbell();
+</script>

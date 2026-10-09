@@ -4,3 +4,4 @@ node_modules/
 shots/
 .DS_Store
 eval/data/
+decisions/dist/
