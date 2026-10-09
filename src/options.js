@@ -17,6 +17,8 @@ const SAMPLES = [
   { id: 'p9', author: '@baker_jo', text: 'third attempt at sourdough and it finally has an open crumb' },
 ];
 
+const looksLikeKey = (t) => /^apikey_[\w-]{16,}$/.test(t) || (!/\s/.test(t) && t.length >= 40 && /\d/.test(t));
+
 let S = normaliseSettings();
 let previewTimer = null;
 let previewSeq = 0;
@@ -25,6 +27,11 @@ const jevCache = new Map(); // fingerprint|sampleId -> verdict
 async function load() {
   const { settings: raw } = await chrome.storage.local.get('settings');
   S = normaliseSettings(raw);
+  const stray = S.customs.find(looksLikeKey);
+  if (stray) {
+    S = normaliseSettings({ ...S, apiKey: S.apiKey || stray, customs: S.customs.filter((c) => !looksLikeKey(c)) });
+    await chrome.storage.local.set({ settings: S });
+  }
   $('enabled').checked = S.enabled;
   $('key').value = S.apiKey;
   $('allow').value = S.allowHandles.map((h) => `@${h}`).join(' ');
@@ -153,6 +160,13 @@ $('custom-form').addEventListener('submit', (e) => {
   const t = $('custom').value.trim();
   if (!t) return;
   $('custom').value = '';
+  // A pasted API key is never a mute: move it to the key field instead of sending it to Jev as one.
+  if (looksLikeKey(t)) {
+    $('key').value = t; $('key-box').open = true; jevCache.clear();
+    change({ apiKey: t });
+    $('test-result').textContent = 'That looked like your TypeSafe key, so it went in the key field.';
+    return;
+  }
   change({ customs: [...S.customs, t] });
 });
 $('enabled').addEventListener('change', (e) => change({ enabled: e.target.checked }));
