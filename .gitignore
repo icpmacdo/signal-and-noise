@@ -6,3 +6,6 @@ shots/
 eval/data/
 decisions/dist/
 trailer/out/
+os/.build/
+os/build/
+os/eval-out/
