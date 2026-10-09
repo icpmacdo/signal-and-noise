@@ -48,6 +48,12 @@
       .map((i) => i.getAttribute('alt')).filter((a) => a && a !== 'Image');
     if (article.querySelector('[data-testid="videoPlayer"], [data-testid="videoComponent"], video')) media.unshift('video');
     else if (article.querySelector('[data-testid="tweetPhoto"]') && !media.length) media.push('photo');
+    // The pictures themselves, for routes that can see them (Memes needs this). Video posters count:
+    // reaction GIFs are videos on X. Small renditions keep the upload light.
+    const images = [...article.querySelectorAll('[data-testid="tweetPhoto"] img, video[poster]')]
+      .map((n) => n.getAttribute('src') || n.getAttribute('poster') || '')
+      .filter((u) => u.startsWith('https://pbs.twimg.com/'))
+      .map((u) => (u.includes('name=') ? u.replace(/name=\w+/, 'name=small') : u));
     const context = article.querySelector('[data-testid="socialContext"]')?.innerText.trim();
     const promoted = /\bPromoted\b|\bAd\b/.test(article.querySelector('[data-testid="placementTracking"]')?.innerText || '')
       || !!article.querySelector('[data-testid="placementTracking"]');
@@ -56,6 +62,7 @@
       text: texts[0] || '',
       quoted: texts[1] ? (quotedHandle ? `${quotedHandle}: ${texts[1]}` : texts[1]) : '',
       media,
+      images: [...new Set(images)],
       context: promoted ? 'promoted post (ad)' : context || '',
     };
     t.id = tweetId(article) || hash(`${t.author}|${t.text}|${t.quoted}`);
@@ -217,9 +224,17 @@
 
   // ---- settings -----------------------------------------------------------------------------
 
+  // Mirrors isConfigured() in wire.js (content scripts can't import modules), plus the old
+  // single-key setting so a tab opened before the upgrade keeps working.
+  function configured(s) {
+    const p = s.provider || 'typesafe';
+    if (p === 'local') return s.localUrl !== ''; // unset means the default localhost URL
+    return !!(s.keys?.[p] || (p === 'typesafe' && s.apiKey));
+  }
+
   function setActive(s) {
     const was = active;
-    active = !!(s && s.enabled !== false && s.apiKey && (s.picked?.length || s.customs?.length || s.mutes?.length));
+    active = !!(s && s.enabled !== false && configured(s) && (s.picked?.length || s.customs?.length || s.mutes?.length));
     if (was === active && !(active && s)) return;
     verdicts.clear(); // mutes may have changed; re-judge what's on screen
     document.querySelectorAll('article[data-jm-id]').forEach((a) => { reset(a); delete a.dataset.jmId; });

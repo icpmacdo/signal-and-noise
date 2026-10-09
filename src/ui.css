@@ -98,3 +98,8 @@ summary { cursor: pointer; font-weight: 600; }
 .stat-k { font-size: 14px; color: var(--fg-2); }
 .foot { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 14px; }
 [hidden] { display: none !important; }
+
+#provider { appearance: auto; }
+#local-row { display: grid; gap: 8px; margin: 8px 0; }
+#images-row { margin-top: 8px; }
+.bubble.blind { opacity: .55; }

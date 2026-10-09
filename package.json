@@ -7,6 +7,7 @@
   "scripts": {
     "test": "node --test test/",
     "e2e": "node scripts/e2e.js",
+    "e2e:routes": "node scripts/e2e-routes.js",
     "zip": "rm -f signal-and-noise.zip && zip -r signal-and-noise.zip manifest.json src icons"
   },
   "devDependencies": {

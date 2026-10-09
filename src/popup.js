@@ -1,4 +1,4 @@
-import { COMMON, normaliseSettings } from './wire.js';
+import { COMMON, PROVIDERS, normaliseSettings, isConfigured } from './wire.js';
 
 const $ = (id) => document.getElementById(id);
 const labelOf = Object.fromEntries(COMMON.map((c) => [c.id, c.label]));
@@ -20,7 +20,7 @@ async function render() {
   sw.classList.toggle('on', s.enabled);
 
   const n = s.picked.length + s.customs.length;
-  $('status').textContent = !s.apiKey ? 'Add your TypeSafe key in settings to start.' : !n ? 'Nothing muted yet.' : s.enabled ? '' : 'Paused. Everything shows.';
+  $('status').textContent = !isConfigured(s) ? `Add your ${PROVIDERS[s.provider].label} key in settings to start.` : !n ? 'Nothing muted yet.' : s.enabled ? '' : 'Paused. Everything shows.';
   $('status').hidden = !$('status').textContent;
 
   const today = new Date().toISOString().slice(0, 10);
@@ -53,7 +53,7 @@ async function render() {
 
   const recent = lastError && Date.now() - lastError.at < 10 * 60 * 1000;
   $('error').hidden = !recent;
-  if (recent) $('error').textContent = `Jev error, showing everything meanwhile: ${lastError.message}`;
+  if (recent) $('error').textContent = `Model error, showing everything meanwhile: ${lastError.message}`;
 }
 
 $('enabled').addEventListener('click', async () => { const s = await settings(); await patch({ enabled: !s.enabled }); });

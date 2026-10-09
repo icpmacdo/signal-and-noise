@@ -4,7 +4,11 @@
   "version": "0.1.0",
   "description": "Say what counts as noise on X in plain words. Jev folds it away before you scroll to it.",
   "permissions": ["storage"],
-  "host_permissions": ["https://api.typesafe.ai/*"],
+  "host_permissions": [
+    "https://api.typesafe.ai/*", "https://api.openai.com/*", "https://pbs.twimg.com/*",
+    "http://localhost/*", "http://127.0.0.1/*"
+  ],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
   "background": { "service_worker": "src/background.js", "type": "module" },
   "content_scripts": [
     {

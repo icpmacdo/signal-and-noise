@@ -1,12 +1,12 @@
-// The only place the TypeSafe key is used. Content scripts send batches of tweets; this asks Jev,
-// caches verdicts per tweet, and keeps a tally for the popup. Any failure answers "show" so the
-// timeline is never held hostage by the API.
+// The only place the provider keys are used. Content scripts send batches of tweets; this asks the
+// chosen model, caches verdicts per tweet, and keeps a tally for the popup. Any failure answers
+// "show" so the timeline is never held hostage by the API.
 import {
-  MAX_BATCH, MODEL, normaliseSettings, requestFor, verdictsFrom, isAllowed, settingsFingerprint, mutesOf,
+  MAX_BATCH, MAX_IMAGES, normaliseSettings, requestFor, isAllowed, settingsFingerprint, mutesOf,
+  isConfigured, seesImages,
 } from './wire.js';
+import { ask, imagesAsData, TIMEOUT_MS } from './ask.js';
 
-const ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
-const TIMEOUT_MS = 2500;
 const CACHE_MAX = 3000;
 
 const cache = new Map(); // `${fingerprint}|${tweetId}` -> verdict
@@ -16,21 +16,14 @@ async function settings() {
   return normaliseSettings(raw);
 }
 
-async function askJev(tweets, s) {
-  const req = requestFor(tweets, s);
-  if (!req) return {};
+async function askModel(tweets, s) {
+  if (!requestFor(tweets, s)) return {};
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS[s.provider]);
   try {
-    const r = await fetch(ENDPOINT, {
-      method: 'POST',
-      signal: ctl.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.apiKey}` },
-      body: JSON.stringify({ ...req.body, model: MODEL }),
-    });
-    const text = await r.text();
-    if (!r.ok) throw new Error(`Jev ${r.status}: ${text.slice(0, 200)}`);
-    return verdictsFrom(JSON.parse(text).answers, req.ids, s);
+    const urls = seesImages(s) ? (tweets[0].images || []).slice(0, MAX_IMAGES) : [];
+    const images = urls.length ? await imagesAsData(urls, { signal: ctl.signal }) : [];
+    return await ask(requestFor(tweets, s, images), s, { signal: ctl.signal });
   } finally {
     clearTimeout(timer);
   }
@@ -38,7 +31,7 @@ async function askJev(tweets, s) {
 
 async function judge(tweets) {
   const s = await settings();
-  if (!s.enabled || !s.apiKey || !mutesOf(s).length) return { verdicts: {}, off: true };
+  if (!s.enabled || !isConfigured(s) || !mutesOf(s).length) return { verdicts: {}, off: true };
   const fp = settingsFingerprint(s);
   const verdicts = {};
   const todo = [];
@@ -50,7 +43,7 @@ async function judge(tweets) {
   const batches = [];
   for (let i = 0; i < todo.length; i += MAX_BATCH) batches.push(todo.slice(i, i + MAX_BATCH));
   let error = null;
-  const results = await Promise.allSettled(batches.map((b) => askJev(b, s)));
+  const results = await Promise.allSettled(batches.map((b) => askModel(b, s)));
   for (const res of results) {
     if (res.status === 'rejected') { error = String(res.reason?.message || res.reason); continue; }
     for (const [id, v] of Object.entries(res.value)) {

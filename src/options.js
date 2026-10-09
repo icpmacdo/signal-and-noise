@@ -1,4 +1,5 @@
-import { COMMON, normaliseSettings, requestFor, verdictsFrom, MODEL } from './wire.js';
+import { COMMON, PROVIDERS, normaliseSettings, requestFor, isConfigured, seesImages, settingsFingerprint } from './wire.js';
+import { ask } from './ask.js';
 
 const $ = (id) => document.getElementById(id);
 const IDEAS = ['Anything about the Oilers', 'Posts by reply guys', 'Election predictions', 'Apple rumours'];
@@ -17,6 +18,12 @@ const SAMPLES = [
   { id: 'p9', author: '@baker_jo', text: 'third attempt at sourdough and it finally has an open crumb' },
 ];
 
+const KEY_HINTS = {
+  typesafe: ['apikey_…', 'Jev runs on your own key from typesafe.ai. Fast (about 150 ms a post) and pinned to a tested version. Reads text only.'],
+  openai: ['sk-…', "OpenAI's Decisions API on your own key from platform.openai.com. Slower, but it can look at the pictures, so Memes works."],
+  local: ['Key (optional)', 'Any server that speaks TypeSafe\'s /v1/systemone protocol, on this machine or one you host. Reads text only.'],
+};
+
 const looksLikeKey = (t) => /^apikey_[\w-]{16,}$/.test(t) || (!/\s/.test(t) && t.length >= 40 && /\d/.test(t));
 
 let S = normaliseSettings();
@@ -29,13 +36,14 @@ async function load() {
   S = normaliseSettings(raw);
   const stray = S.customs.find(looksLikeKey);
   if (stray) {
-    S = normaliseSettings({ ...S, apiKey: S.apiKey || stray, customs: S.customs.filter((c) => !looksLikeKey(c)) });
+    S = normaliseSettings({ ...S, keys: { ...S.keys, typesafe: S.keys.typesafe || stray }, customs: S.customs.filter((c) => !looksLikeKey(c)) });
     await chrome.storage.local.set({ settings: S });
   }
   $('enabled').checked = S.enabled;
-  $('key').value = S.apiKey;
+  $('provider').replaceChildren(...Object.entries(PROVIDERS).map(([id, p]) => new Option(p.label, id)));
   $('allow').value = S.allowHandles.map((h) => `@${h}`).join(' ');
-  if (!S.apiKey) $('key-box').open = true;
+  if (!isConfigured(S)) $('key-box').open = true;
+  renderModel();
   render();
 }
 
@@ -44,7 +52,8 @@ function save() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     await chrome.storage.local.set({ settings: S });
-    $('saved').textContent = S.apiKey ? 'Saved. Open X tabs update right away.' : 'Saved. Add your TypeSafe key below to start filtering.';
+    $('saved').textContent = isConfigured(S) ? 'Saved. Open X tabs update right away.'
+      : `Saved. Add your ${PROVIDERS[S.provider].label} key below to start filtering.`;
   }, 250);
 }
 
@@ -70,10 +79,28 @@ function bubble(label, { pressed, hint, cls = '', onClick, remove }) {
   return b;
 }
 
+// The model fields follow the chosen route: key or URL, and the images switch only where it applies.
+function renderModel() {
+  const p = PROVIDERS[S.provider];
+  $('provider').value = S.provider;
+  $('provider-note').textContent = KEY_HINTS[S.provider][1];
+  $('key').placeholder = KEY_HINTS[S.provider][0];
+  $('key').value = S.keys[S.provider];
+  $('local-row').hidden = S.provider !== 'local';
+  $('local-url').value = S.localUrl;
+  $('local-model').value = S.localModel;
+  $('images-row').hidden = !p.images;
+  $('send-images').checked = S.sendImages;
+  $('test-result').textContent = '';
+}
+
 function render() {
   $('common').replaceChildren(...COMMON.map((c) => {
     const on = S.picked.includes(c.id);
-    return bubble(c.label, { pressed: on, hint: c.hint, cls: on ? 'on' : '',
+    // A bubble that needs pictures does nothing on a text-only route: say so rather than pretend.
+    const blind = c.needsImages && !seesImages(S);
+    return bubble(c.label, { pressed: on, hint: blind ? `${c.hint}. Needs a model that sees images (OpenAI, with images on).` : c.hint,
+      cls: `${on ? 'on' : ''} ${blind ? 'blind' : ''}`,
       onClick: () => change({ picked: on ? S.picked.filter((x) => x !== c.id) : [...S.picked, c.id] }) });
   }));
   $('customs').replaceChildren(...S.customs.map((c) => bubble(c, { cls: 'custom', remove: true,
@@ -97,18 +124,12 @@ function fallbackVerdict(p) {
   return { hide: false };
 }
 
-async function jevVerdict(p, fp) {
+async function modelVerdict(p, fp) {
   const k = `${fp}|${p.id}`;
   if (jevCache.has(k)) return jevCache.get(k);
   const req = requestFor([p], S);
   if (!req) return { hide: false };
-  const r = await fetch('https://api.typesafe.ai/v1/systemone', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${S.apiKey}` },
-    body: JSON.stringify({ ...req.body, model: MODEL }),
-  });
-  if (!r.ok) throw new Error(`Jev ${r.status}`);
-  const v = verdictsFrom((await r.json()).answers, req.ids, S)[p.id] || { hide: false };
+  const v = (await ask(req, S))[p.id] || { hide: false };
   jevCache.set(k, v);
   return v;
 }
@@ -133,19 +154,20 @@ function renderPreview(verdicts, live) {
     return row;
   }));
   $('preview-sum').textContent = S.enabled ? `${hidden} of ${SAMPLES.length} hidden` : 'Filtering is off';
-  $('preview-note').textContent = live ? 'Sample posts, judged by Jev just now with your mutes.'
-    : 'Sample posts. Add your key to see Jev judge them; in your feed, Jev decides.';
+  const name = PROVIDERS[S.provider].label;
+  $('preview-note').textContent = live ? `Sample posts, judged by ${name} just now with your mutes.`
+    : `Sample posts. Set up ${name} below to see it judge them; in your feed, the model decides.`;
 }
 
 function schedulePreview() {
   const fallback = Object.fromEntries(SAMPLES.map((p) => [p.id, fallbackVerdict(p)]));
-  if (!S.apiKey || !(S.picked.length + S.customs.length)) { renderPreview(fallback, false); return; }
+  if (!isConfigured(S) || !(S.picked.length + S.customs.length)) { renderPreview(fallback, false); return; }
   clearTimeout(previewTimer);
   previewTimer = setTimeout(async () => {
     const seq = ++previewSeq;
-    const fp = JSON.stringify([S.picked, S.customs]);
+    const fp = settingsFingerprint(S);
     try {
-      const vs = await Promise.all(SAMPLES.map((p) => jevVerdict(p, fp)));
+      const vs = await Promise.all(SAMPLES.map((p) => modelVerdict(p, fp)));
       if (seq === previewSeq) renderPreview(Object.fromEntries(SAMPLES.map((p, i) => [p.id, vs[i]])), true);
     } catch {
       if (seq === previewSeq) renderPreview(fallback, false);
@@ -162,34 +184,52 @@ $('custom-form').addEventListener('submit', (e) => {
   $('custom').value = '';
   // A pasted API key is never a mute: move it to the key field instead of sending it to Jev as one.
   if (looksLikeKey(t)) {
-    $('key').value = t; $('key-box').open = true; jevCache.clear();
-    change({ apiKey: t });
-    $('test-result').textContent = 'That looked like your TypeSafe key, so it went in the key field.';
+    $('key-box').open = true; jevCache.clear();
+    change({ keys: { ...S.keys, [S.provider]: t } });
+    renderModel();
+    $('test-result').textContent = `That looked like your ${PROVIDERS[S.provider].label} key, so it went in the key field.`;
     return;
   }
   change({ customs: [...S.customs, t] });
 });
 $('enabled').addEventListener('change', (e) => change({ enabled: e.target.checked }));
 $('allow').addEventListener('change', (e) => change({ allowHandles: e.target.value.split(/[\s,]+/) }));
-$('key').addEventListener('change', (e) => { jevCache.clear(); change({ apiKey: e.target.value }); });
+$('key').addEventListener('change', (e) => { jevCache.clear(); change({ keys: { ...S.keys, [S.provider]: e.target.value } }); });
+$('provider').addEventListener('change', (e) => { change({ provider: e.target.value }); renderModel(); });
+$('local-url').addEventListener('change', (e) => change({ localUrl: e.target.value }));
+$('local-model').addEventListener('change', (e) => change({ localModel: e.target.value }));
+$('send-images').addEventListener('change', (e) => change({ sendImages: e.target.checked }));
 
+// A self-hosted server off localhost needs the browser's permission for its origin; ask during the
+// click, since Chrome only shows the prompt for a user gesture.
+async function allowOrigin(url) {
+  let origin;
+  try { origin = new URL(url).origin; } catch { return false; }
+  if (/^http:\/\/(localhost|127\.0\.0\.1)(:|$)/.test(origin)) return true;
+  return chrome.permissions.request({ origins: [`${origin}/*`] });
+}
+
+// Test with a real one-post question in the shape the feed will send.
 $('test').addEventListener('click', async () => {
-  const s = normaliseSettings({ ...S, apiKey: $('key').value });
+  const s = normaliseSettings({ ...S, keys: { ...S.keys, [S.provider]: $('key').value },
+    localUrl: $('local-url').value, localModel: $('local-model').value });
   const out = $('test-result');
-  if (!s.apiKey) { out.textContent = 'Paste a key first.'; return; }
-  out.textContent = 'Asking Jev…';
+  const name = PROVIDERS[s.provider].label;
+  if (!isConfigured(s)) { out.textContent = 'Paste a key first.'; return; }
+  if (s.provider === 'local' && !(await allowOrigin(s.localUrl))) { out.textContent = "Chrome didn't allow that server."; return; }
+  out.textContent = `Asking ${name}…`;
   const started = performance.now();
   try {
-    const r = await fetch('https://api.typesafe.ai/v1/systemone', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.apiKey}` },
-      body: JSON.stringify({ model: MODEL, state: { tweet: 'hello' }, questions: { q: { type: 'noul', instructions: 'Is this a greeting?' } } }),
-    });
+    const probe = normaliseSettings({ ...s, picked: ['rage'], customs: [] });
+    const req = requestFor([{ id: 'test', author: '@test', text: 'Good morning! Coffee first, then emails.' }], probe);
+    await ask(req, probe);
     const ms = Math.round(performance.now() - started);
-    out.textContent = r.ok ? `Key works (${ms} ms).` : `Key rejected (${r.status}). Check it and try again.`;
-    if (r.ok) { jevCache.clear(); change({ apiKey: s.apiKey }); }
+    out.textContent = `${name} works (${ms} ms).`;
+    jevCache.clear();
+    change({ keys: s.keys, localUrl: s.localUrl, localModel: s.localModel });
   } catch (e) {
-    out.textContent = `Couldn't reach Jev: ${e.message}`;
+    out.textContent = e.status === 401 || e.status === 403 ? `Key rejected (${e.status}). Check it and try again.`
+      : `Couldn't get an answer from ${name}: ${e.message}`;
   }
 });
 

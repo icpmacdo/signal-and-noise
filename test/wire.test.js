@@ -66,9 +66,9 @@ test('allow list matches handles with or without @, any case', () => {
   assert.ok(!isAllowed({ author: '@stranger' }, a));
 });
 
-test('fingerprint changes with mutes only', () => {
+test('fingerprint changes with mutes and route, not keys or the switch', () => {
   const f = settingsFingerprint(s);
-  assert.equal(f, settingsFingerprint({ ...s, apiKey: 'other', enabled: false }));
+  assert.equal(f, settingsFingerprint({ ...s, keys: { typesafe: 'other' }, enabled: false }));
   assert.notEqual(f, settingsFingerprint({ ...s, customs: ['x'] }));
   assert.notEqual(f, settingsFingerprint({ ...s, picked: ['rage'] }));
 });

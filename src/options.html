@@ -42,12 +42,20 @@
         <p class="hint">Their posts are never checked. Handles separated by spaces or commas.</p>
         <input id="allow" type="text" placeholder="@friend  @favourite_writer" class="field">
         <details id="key-box">
-          <summary>TypeSafe key</summary>
-          <p class="hint">Jev runs on your own key from <a href="https://typesafe.ai" target="_blank" rel="noopener">typesafe.ai</a>. It stays in this browser and is only sent to api.typesafe.ai.</p>
-          <div class="add-row">
-            <input id="key" type="password" autocomplete="off" placeholder="apikey_…" class="field">
-            <button id="test" type="button" class="secondary">Test key</button>
+          <summary>Model</summary>
+          <p class="hint">Which model reads your posts. Keys stay in this browser and are only sent to the model you pick.</p>
+          <label for="provider" class="sr">Model</label>
+          <select id="provider" class="field"></select>
+          <p class="hint" id="provider-note"></p>
+          <div id="local-row" hidden>
+            <input id="local-url" type="url" autocomplete="off" placeholder="http://localhost:8080/v1/systemone" class="field">
+            <input id="local-model" type="text" autocomplete="off" placeholder="Model name (optional)" class="field">
           </div>
+          <div class="add-row">
+            <input id="key" type="password" autocomplete="off" class="field">
+            <button id="test" type="button" class="secondary">Test</button>
+          </div>
+          <label class="toggle" id="images-row" hidden><input id="send-images" type="checkbox"> Send post images to the model (needed for Memes)</label>
           <p class="hint" id="test-result" role="status"></p>
         </details>
       </section>
