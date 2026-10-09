@@ -138,6 +138,33 @@ try {
   await new Promise((r) => setTimeout(r, 1500));
   await page.waitForFunction(() => document.querySelectorAll('article.jm-pending').length === 0, { timeout: 6000 });
 
+  // 3c. Videos: a post with a video player hides under the Videos bubble; a text post doesn't.
+  await worker.evaluate(async () => {
+    const { settings } = await chrome.storage.local.get('settings');
+    await chrome.storage.local.set({ settings: { ...settings, picked: [...settings.picked, 'video'] } });
+  });
+  await new Promise((r) => setTimeout(r, 1200));
+  await page.evaluate(() => {
+    const tl = document.getElementById('tl');
+    const mk = (id, h, text, video) => `<div data-testid="cellInnerDiv"><div><article data-testid="tweet" role="article">
+      <div data-testid="User-Name"><span>${h}</span><span>@${h}</span></div>
+      <a href="/${h}/status/${id}"><time datetime="2026-10-08T12:00:00Z">1h</time></a>
+      <div data-testid="tweetText">${text}</div>${video ? '<div data-testid="videoPlayer"><video></video></div>' : ''}</article></div></div>`;
+    tl.insertAdjacentHTML('beforeend', mk('1012', 'clipper', 'watch this sunset timelapse from the ridge', true) + mk('1013', 'writer', 'wrote up how we cut our build times in half', false));
+  });
+  await page.waitForFunction(() => document.querySelectorAll('article[data-jm-id="1012"], article[data-jm-id="1013"]').length === 2
+    && document.querySelectorAll('article.jm-pending').length === 0, { timeout: 6000 });
+  st = await state();
+  check(st['1012']?.hidden === true, 'Videos bubble hides a post with a video player');
+  check(st['1013']?.hidden === false, 'Videos bubble leaves a text post alone');
+  await worker.evaluate(async () => {
+    const { settings } = await chrome.storage.local.get('settings');
+    await chrome.storage.local.set({ settings: { ...settings, picked: settings.picked.filter((x) => x !== 'video') } });
+  });
+  await page.evaluate(() => { document.querySelectorAll('article[data-jm-id="1012"], article[data-jm-id="1013"]').forEach((a) => a.closest('[data-testid=cellInnerDiv]').remove()); });
+  await new Promise((r) => setTimeout(r, 1500));
+  await page.waitForFunction(() => document.querySelectorAll('article.jm-pending').length === 0, { timeout: 6000 });
+
   // 4. Show on the grouped bar reveals the whole run, each with feedback chips.
   await page.click('.jm-bar:not(.jm-merged) .jm-show');
   await page.waitForFunction(() => document.querySelectorAll('.jm-shown').length >= 4, { timeout: 2000 }).catch(() => {});

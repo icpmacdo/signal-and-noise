@@ -42,8 +42,12 @@
     const handle = handleIn(nameBox);
     const quotedHandle = handleIn(quotedBox);
     const texts = [...article.querySelectorAll('[data-testid="tweetText"]')].map((n) => n.innerText.trim());
+    // Jev can't see pixels, so say what kind of media is there (the Videos bubble depends on it),
+    // plus any alt text people wrote for their images.
     const media = [...article.querySelectorAll('[data-testid="tweetPhoto"] img[alt]')]
       .map((i) => i.getAttribute('alt')).filter((a) => a && a !== 'Image');
+    if (article.querySelector('[data-testid="videoPlayer"], [data-testid="videoComponent"], video')) media.unshift('video');
+    else if (article.querySelector('[data-testid="tweetPhoto"]') && !media.length) media.push('photo');
     const context = article.querySelector('[data-testid="socialContext"]')?.innerText.trim();
     const promoted = /\bPromoted\b|\bAd\b/.test(article.querySelector('[data-testid="placementTracking"]')?.innerText || '')
       || !!article.querySelector('[data-testid="placementTracking"]');

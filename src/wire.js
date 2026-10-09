@@ -31,6 +31,9 @@ export const COMMON = [
   { id: 'thirst', label: 'Thirst traps', hint: 'suggestive selfies posted for engagement' },
   { id: 'slop', label: 'AI slop images', hint: 'low-effort generated pictures' },
   { id: 'ads', label: 'Promoted posts', hint: 'ads in the timeline' },
+  { id: 'video', label: 'Videos', hint: 'any post with a video or GIF in it' },
+  { id: 'politics', label: 'Politics, all of it', hint: 'any post about elections, parties, politicians or government, calm or not' },
+  { id: 'promo', label: 'Self-promotion', hint: 'people plugging their own product, course, newsletter or launch' },
 ];
 const COMMON_BY_ID = Object.fromEntries(COMMON.map((c) => [c.id, c]));
 
