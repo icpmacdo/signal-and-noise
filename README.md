@@ -29,6 +29,8 @@ those answers are kept locally (`feedbackLog`) as the start of a real-world eval
   set (localhost is allowed up front, other hosts ask for permission when you press Test).
 - `src/wire.js` builds the request for each route and reads the answers. It is pure code, with unit
   tests in `test/`. `src/ask.js` makes the call, shared by the background worker and the settings page.
+- A reply to a hidden post hides with it, under the same bar (X marks a conversation with a
+  connector line beside the parent's avatar). Show reveals both; the "always show" list still wins.
 - Tweets from accounts on the "always show" list are never sent to Jev. The tweet you opened
   directly (`/status/<id>`) is never hidden.
 

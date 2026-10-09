@@ -13,12 +13,16 @@ const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Conte
 const PIXEL = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
 const TWEETS = [
-  { id: '2001', handle: 'angrypundit', text: 'The other party wants to DESTROY this country.', expect: 'hide' },
-  { id: '2002', handle: 'birdwatcher', text: 'A pair of kestrels nesting on the church tower again.', expect: 'show' },
+  // Two conversations: each post has a reply under it (thread: true draws X's connector line).
+  { id: '2001', handle: 'angrypundit', text: 'The other party wants to DESTROY this country.', expect: 'hide', thread: true },
+  { id: '2004', handle: 'nodder', text: 'Exactly right, well said.', expect: 'hide' }, // judged keep, hidden as a reply
+  { id: '2002', handle: 'birdwatcher', text: 'A pair of kestrels nesting on the church tower again.', expect: 'show', thread: true },
+  { id: '2005', handle: 'nodder', text: 'Exactly right, lovely to see.', expect: 'show' },
   { id: '2003', handle: 'memelord', text: 'me at 3am', image: 'https://pbs.twimg.com/media/meme1?format=jpg&name=large', meme: true },
 ];
 
 const cell = (t) => `<div data-testid="cellInnerDiv"><div><article data-testid="tweet" role="article">
+  <div><div data-testid="Tweet-User-Avatar"></div>${t.thread ? '<div class="connector"></div>' : ''}</div>
   <div data-testid="User-Name"><span>${t.handle}</span><span>@${t.handle}</span></div>
   <a href="/${t.handle}/status/${t.id}"><time datetime="2026-10-08T12:00:00Z">2h</time></a>
   <div data-testid="tweetText">${t.text}</div>
@@ -104,6 +108,18 @@ try {
   let st = await state();
   check(st['2001'] === true, 'local: rage post hidden');
   check(st['2002'] === false && st['2003'] === false, 'local: other posts shown');
+  check(st['2004'] === true, 'local: a reply to a hidden post is hidden with it');
+  check(st['2005'] === false, 'local: a reply to a shown post is shown');
+  const bar = await page.$$eval('.jm-bar:not(.jm-merged)', (bs) => bs.map((b) => b.textContent.replace('Show', '').trim()));
+  check(/^2 posts hidden · [^,]+$/.test(bar[0] || ''), `local: post and reply share one bar with one reason — "${bar[0]}"`);
+  await page.click('.jm-bar:not(.jm-merged) .jm-show');
+  st = await state();
+  check(st['2001'] === false && st['2004'] === false, 'local: Show reveals the post and its reply');
+  check(await page.$eval('article[data-jm-id="2004"]', (a) => a.previousElementSibling.querySelector('.jm-feedback').hidden),
+    "local: the reply doesn't ask for hide feedback (the model didn't hide it)");
+  await page.click('.jm-shown .jm-link'); // the first strip is the post's own
+  st = await state();
+  check(st['2001'] === true && st['2004'] === true, 'local: Hide again hides the reply too');
   check(localSeen.length >= 3 && localSeen.every((r) => r.body.model === 'stub-model' && r.body.questions?.t0), 'local: systemone requests with the chosen model name');
   check(localSeen.every((r) => !('c_memes' in r.body.questions.t0.criteria)), "local: Memes isn't asked about on a text-only route");
 

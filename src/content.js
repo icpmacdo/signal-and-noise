@@ -74,6 +74,29 @@
     return m ? m[1] : null;
   }
 
+  // X draws a conversation as consecutive cells: a post with a reply under it has a connector
+  // line next to its avatar. A reply to a hidden post goes with it; alone it makes no sense.
+  const threadsDown = (a) => (a.querySelector('[data-testid="Tweet-User-Avatar"]')?.parentElement?.childElementCount || 0) > 1;
+  const articleIn = (c) => c?.querySelector('article[data-testid="tweet"]');
+  function parentOf(article) {
+    const p = articleIn(article.closest('[data-testid="cellInnerDiv"]')?.previousElementSibling);
+    return p && threadsDown(p) ? p : null;
+  }
+  function replyTo(article) {
+    return threadsDown(article) ? articleIn(article.closest('[data-testid="cellInnerDiv"]')?.nextElementSibling) : null;
+  }
+
+  // The tweet's own verdict, or the hide it inherits from the post it replies to. The "always
+  // show" list still wins, and the post you opened is never hidden.
+  function verdictFor(article, id) {
+    if (id === focalId()) return null;
+    const own = verdicts.get(id);
+    if (own?.hide || own?.allowed) return own;
+    const parent = parentOf(article);
+    const pv = parent?.dataset.jmId && verdictFor(parent, parent.dataset.jmId);
+    return pv?.hide ? { hide: true, reason: pv.reason, inherited: true } : own;
+  }
+
   // ---- showing and hiding -----------------------------------------------------------------
 
   const feedbackGiven = new Map(); // tweetId -> 'good' | 'wrong'
@@ -100,8 +123,15 @@
   }
 
   function apply(article, id) {
-    const v = verdicts.get(id);
+    const v = verdictFor(article, id);
+    // Hold a reply back while the post it answers is still being judged (fail-open still applies).
+    if (!v?.hide && parentOf(article)?.classList.contains('jm-pending')) return;
     reset(article);
+    // Re-apply the reply under this post, unless it's still waiting on its own verdict and has
+    // nothing to inherit.
+    const reply = replyTo(article);
+    const rid = reply?.dataset.jmId;
+    if (rid && rid !== id && (verdicts.has(rid) || verdictFor(reply, rid)?.hide)) apply(reply, rid);
     if (!v || !v.hide) return;
     if (!revealed.has(id)) {
       article.classList.add('jm-hidden');
@@ -116,11 +146,17 @@
       // Revealed: say why it was hidden, offer to hide it again, and ask whether the hide was right.
       const strip = el('div', 'jm-ui jm-shown');
       const top = el('div', 'jm-shown-top');
-      top.append(el('span', null, `Shown · hidden for: ${v.reason || 'a mute'}`), button('Hide again', 'jm-link', () => { revealed.delete(id); apply(article, id); regroupSoon(); }));
+      const hideAgain = () => {
+        for (let a = article; a; a = replyTo(a)) revealed.delete(a.dataset.jmId);
+        apply(article, id); regroupSoon();
+      };
+      top.append(el('span', null, `Shown · hidden for: ${v.reason || 'a mute'}${v.inherited ? ' (reply to a hidden post)' : ''}`), button('Hide again', 'jm-link', hideAgain));
       strip.append(top);
       const given = feedbackGiven.get(id);
       const row = el('div', 'jm-feedback');
-      if (given) row.append(el('span', 'jm-thanks', given === 'wrong' ? "Noted: that one shouldn't have been hidden." : 'Noted: good hide.'));
+      // An inherited hide isn't the model's call on this post, so it doesn't go in the eval log.
+      if (v.inherited) row.hidden = true;
+      else if (given) row.append(el('span', 'jm-thanks', given === 'wrong' ? "Noted: that one shouldn't have been hidden." : 'Noted: good hide.'));
       else {
         const send = (verdict) => {
           feedbackGiven.set(id, verdict);
@@ -158,12 +194,12 @@
         const bar = a.previousElementSibling?.classList.contains('jm-bar') ? a.previousElementSibling : null;
         if (!bar) continue;
         if (!run) { run = []; runs.push(run); }
-        run.push({ id: a.dataset.jmId, bar });
+        run.push({ id: a.dataset.jmId, bar, article: a });
       } else if (!a.classList.contains('jm-pending')) run = null;
     }
     for (const r of runs) {
       const ids = r.map((x) => x.id);
-      const reasons = [...new Set(ids.map((i) => verdicts.get(i)?.reason || 'muted'))];
+      const reasons = [...new Set(r.map((x) => verdictFor(x.article, x.id)?.reason || 'muted'))];
       r.forEach((x, k) => {
         x.bar.classList.toggle('jm-merged', k > 0);
         x.bar.dataset.jmRun = JSON.stringify(ids);
