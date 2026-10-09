@@ -4,8 +4,10 @@
 //
 //   swift run snos-eval ~/Desktop/shots                       # both modes, ads + memes
 //   swift run snos-eval ~/Desktop/shots --mode tiles --grid 12x8 --bubbles ads,violence --custom "spiders"
+//   swift run snos-eval ~/Desktop/shots --mode tiles --sam     # also reshape masks with SAM 3 on fal.ai
 //
-// Key: OPENAI_API_KEY or ~/.config/openai/api_key. SNOS_DECISIONS_URL points it at a stub instead.
+// Keys: OPENAI_API_KEY or ~/.config/openai/api_key; for --sam, FAL_KEY or ~/.config/fal/api_key.
+// SNOS_DECISIONS_URL / SNOS_SAM_URL point it at stubs instead.
 import Foundation
 import MaskCore
 
@@ -37,6 +39,8 @@ let picked = option("--bubbles").last.map { $0.split(separator: ",").map(String.
 let customs = option("--custom")
 let threshold = option("--threshold").last.flatMap(Double.init) ?? 0.6
 let outOpt = option("--out").last
+let useSAM = args.contains("--sam")
+args.removeAll { $0 == "--sam" }
 guard let folder = args.first else {
   fail("usage: snos-eval <folder of screenshots> [--mode tiles|grid|both] [--grid 8x5] [--bubbles ads,memes] [--custom text]… [--threshold 0.6] [--out dir]")
 }
@@ -51,6 +55,14 @@ let keyFile = FileManager.default.homeDirectoryForCurrentUser.appendingPathCompo
 let key = env["OPENAI_API_KEY"] ?? (try? String(contentsOf: keyFile, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 if key.isEmpty && url == Decisions.defaultURL { fail("no key: set OPENAI_API_KEY or write it to ~/.config/openai/api_key") }
 let client = DecisionsClient(key: key, url: url, timeout: 30)
+var sam: SAMClient?
+if useSAM {
+  let samURL = env["SNOS_SAM_URL"].flatMap(URL.init(string:)) ?? SAMClient.defaultURL
+  let falFile = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/fal/api_key")
+  let falKey = env["FAL_KEY"] ?? (try? String(contentsOf: falFile, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+  if falKey.isEmpty && samURL == SAMClient.defaultURL { fail("--sam needs FAL_KEY or ~/.config/fal/api_key") }
+  sam = SAMClient(key: falKey, url: samURL)
+}
 
 let dir = URL(fileURLWithPath: (folder as NSString).expandingTildeInPath)
 let files = ((try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [])
@@ -67,6 +79,9 @@ struct Row: Encodable {
   let requests: Int
   let errors: [String]
   let cells: [String: Verdict]
+  /// SAM shapes per masked block (first cell's label), image pixels.
+  let shapes: [String: [[Double]]]
+  let samSeconds: Double
 }
 
 func html(_ s: String) -> String {
@@ -82,11 +97,27 @@ for file in files {
     let judge = Judge(client: client, bubbles: bubbles, threshold: threshold, mode: mode)
     let r = await judge.judge(image, spec: spec, cells: Array(0..<spec.count))
     let hidden = r.verdicts.filter { $0.value.hide }
+    var shapes: [String: [CGRect]] = [:]
+    var samSeconds = 0.0
+    if let sam {
+      let t0 = Date()
+      for block in Merge.blocks(Set(hidden.keys), spec: spec) {
+        let reasons = Set(block.cells(spec).flatMap { hidden[$0]?.reasons ?? [] })
+        let prompts = bubbles.filter { reasons.contains($0.label) }.compactMap(\.segment)
+        let res = await Refine.block(block, image: image, spec: spec, prompts: prompts, client: sam)
+        for e in res.errors.prefix(1) { print("  SAM error: \(e)") }
+        if !res.rects.isEmpty { shapes[spec.label(block.cells(spec)[0])] = res.rects }
+      }
+      samSeconds = Date().timeIntervalSince(t0)
+      print(String(format: "  SAM: %d blocks reshaped, %.2f s", shapes.count, samSeconds))
+    }
     print(String(format: "%@ %@: %d/%d answered, %d masked, %d requests, %.2f s%@", file.lastPathComponent, mode.rawValue,
                  r.verdicts.count, spec.count, hidden.count, r.requests, r.seconds, r.errors.isEmpty ? "" : ", \(r.errors.count) errors"))
     for e in r.errors.prefix(2) { print("  error: \(e)") }
     rows.append(Row(file: file.lastPathComponent, mode: mode.rawValue, seconds: r.seconds, requests: r.requests, errors: r.errors,
-                    cells: Dictionary(uniqueKeysWithValues: r.verdicts.map { (spec.label($0.key), $0.value) })))
+                    cells: Dictionary(uniqueKeysWithValues: r.verdicts.map { (spec.label($0.key), $0.value) }),
+                    shapes: shapes.mapValues { $0.map { [$0.minX, $0.minY, $0.width, $0.height].map(Double.init) } },
+                    samSeconds: samSeconds))
     var overlay = ""
     for i in 0..<spec.count {
       let rect = spec.rect(i, width: image.width, height: image.height)
@@ -99,8 +130,13 @@ for file in files {
                         rect.width / CGFloat(image.width) * 100, rect.height / CGFloat(image.height) * 100,
                         v?.hide == true ? "<span>\(html(v!.reasons.joined(separator: ", ")))</span>" : "")
     }
+    for rect in shapes.values.joined() {
+      overlay += String(format: "<div class=\"shape\" style=\"left:%.3f%%;top:%.3f%%;width:%.3f%%;height:%.3f%%\"></div>",
+                        rect.minX / CGFloat(image.width) * 100, rect.minY / CGFloat(image.height) * 100,
+                        rect.width / CGFloat(image.width) * 100, rect.height / CGFloat(image.height) * 100)
+    }
     columns.append("""
-      <figure><figcaption><b>\(mode.rawValue)</b> · \(hidden.count) masked · \(r.requests) requests · \(String(format: "%.2f", r.seconds)) s\(r.errors.isEmpty ? "" : " · <em>\(r.errors.count) errors</em>")</figcaption>
+      <figure><figcaption><b>\(mode.rawValue)</b> · \(hidden.count) masked · \(r.requests) requests · \(String(format: "%.2f", r.seconds)) s\(sam == nil ? "" : String(format: " · SAM %d shapes, %.2f s", shapes.values.reduce(0) { $0 + $1.count }, samSeconds))\(r.errors.isEmpty ? "" : " · <em>\(r.errors.count) errors</em>")</figcaption>
       <div class="shot"><img src="\(html(file.absoluteString))">\(overlay)</div></figure>
       """)
   }
@@ -131,10 +167,11 @@ figure{margin:0}figcaption{font-size:13px;color:var(--muted);margin-bottom:6px}
 .cell{position:absolute;box-sizing:border-box;border:1px solid rgba(127,127,127,.25)}
 .cell.none{background:repeating-linear-gradient(45deg,transparent 0 6px,rgba(127,127,127,.25) 6px 8px)}
 .cell.hit{background:var(--hit);border:2px solid rgb(220,38,38);backdrop-filter:blur(6px)}
+.shape{position:absolute;box-sizing:border-box;border:3px solid rgb(37,99,235);background:rgba(37,99,235,.18)}
 .cell span{position:absolute;left:4px;top:4px;font:600 11px/1.2 -apple-system,sans-serif;color:#fff;background:rgb(220,38,38);padding:2px 5px;border-radius:4px}
 </style></head><body><main>
 <h1>Mask eval</h1>
-<p>Grid \(spec.cols)×\(spec.rows) · bubbles: \(html(bubbles.map(\.label).joined(separator: ", "))) · mask at \(Int(threshold * 100))% · \(files.count) screenshots. Red cells would be masked; hover any cell for its scores; striped cells got no answer.</p>
+<p>Grid \(spec.cols)×\(spec.rows) · bubbles: \(html(bubbles.map(\.label).joined(separator: ", "))) · mask at \(Int(threshold * 100))% · \(files.count) screenshots. Red cells would be masked; hover any cell for its scores; striped cells got no answer.\(sam == nil ? "" : " Blue boxes are SAM's tighter shapes, which replace the red cells they overlap.")</p>
 <ul>\(summary)</ul>
 \(sections.joined(separator: "\n"))
 </main></body></html>

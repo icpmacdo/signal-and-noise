@@ -230,3 +230,36 @@ enum TestImages {
     return ctx.makeImage()!
   }
 }
+
+final class SegmenterTests: XCTestCase {
+  func testParsesTopLevelBoxesAsPixelRects() throws {
+    let json = #"{"masks":[{"url":"x"}],"boxes":[[0.5,0.5,0.5,0.25]],"scores":[0.8]}"#
+    let boxes = try SAMClient.parse(Data(json.utf8), width: 400, height: 200)
+    XCTAssertEqual(boxes, [SAMBox(rect: CGRect(x: 100, y: 75, width: 200, height: 50), score: 0.8)])
+  }
+
+  func testParsesMetadataBoxes() throws {
+    let json = #"{"masks":[],"metadata":[{"index":0,"score":0.6,"box":[0.25,0.25,0.5,0.5]}]}"#
+    let boxes = try SAMClient.parse(Data(json.utf8), width: 100, height: 100)
+    XCTAssertEqual(boxes.first?.rect, CGRect(x: 0, y: 0, width: 50, height: 50))
+    XCTAssertEqual(boxes.first?.score, 0.6)
+  }
+
+  func testShapesDropWeakTinyAndWholeCropBoxes() {
+    let area = CGRect(x: 100, y: 100, width: 300, height: 300)
+    let shapes = Refine.shapes([
+      SAMBox(rect: CGRect(x: 10, y: 10, width: 100, height: 80), score: 0.9),   // kept, moved into image space
+      SAMBox(rect: CGRect(x: 10, y: 10, width: 100, height: 80), score: 0.1),   // too unsure
+      SAMBox(rect: CGRect(x: 0, y: 0, width: 10, height: 10), score: 0.9),      // too small
+      SAMBox(rect: CGRect(x: -5, y: -5, width: 310, height: 310), score: 0.9),  // the whole crop
+      SAMBox(rect: CGRect(x: 250, y: 250, width: 100, height: 100), score: 0.9), // clipped to the area
+    ], area: area)
+    XCTAssertEqual(shapes, [CGRect(x: 110, y: 110, width: 100, height: 80), CGRect(x: 350, y: 350, width: 50, height: 50)])
+  }
+
+  func testSearchAreaAddsHalfACellClampedToImage() {
+    let spec = GridSpec(cols: 4, rows: 2)
+    let area = Refine.searchArea(CellBlock(col0: 0, row0: 0, col1: 1, row1: 0), spec: spec, width: 400, height: 200)
+    XCTAssertEqual(area, CGRect(x: 0, y: 0, width: 250, height: 150))
+  }
+}

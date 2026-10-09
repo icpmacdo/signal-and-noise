@@ -9,6 +9,8 @@ struct Settings: Codable, Equatable {
   var threshold = 0.6
   var mode = Mode.tiles
   var grid = GridSpec(cols: 8, rows: 5)
+  /// Reshape masks with SAM 3 on fal.ai when a fal key is set.
+  var tighterShapes = true
   /// Apps whose windows are never captured, and while one is in front nothing runs at all.
   var neverApps = [
     "com.1password.1password", "com.agilebits.onepassword7", "com.bitwarden.desktop",
@@ -16,6 +18,22 @@ struct Settings: Codable, Equatable {
   ]
 
   var bubbles: [Bubble] { Bubbles.active(picked: picked, customs: customs) }
+
+  init() {}
+
+  /// Fields added later fall back to their defaults instead of discarding saved settings.
+  init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    let d = Settings()
+    enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? d.enabled
+    picked = try c.decodeIfPresent([String].self, forKey: .picked) ?? d.picked
+    customs = try c.decodeIfPresent([String].self, forKey: .customs) ?? d.customs
+    threshold = try c.decodeIfPresent(Double.self, forKey: .threshold) ?? d.threshold
+    mode = try c.decodeIfPresent(Mode.self, forKey: .mode) ?? d.mode
+    grid = try c.decodeIfPresent(GridSpec.self, forKey: .grid) ?? d.grid
+    tighterShapes = try c.decodeIfPresent(Bool.self, forKey: .tighterShapes) ?? d.tighterShapes
+    neverApps = try c.decodeIfPresent([String].self, forKey: .neverApps) ?? d.neverApps
+  }
 
   static func load() -> Settings {
     guard let data = UserDefaults.standard.data(forKey: "settings"),
@@ -28,25 +46,25 @@ struct Settings: Codable, Equatable {
   }
 }
 
-/// The OpenAI key lives in the login keychain. OPENAI_API_KEY or ~/.config/openai/api_key also work,
-/// which is handy when running from a terminal.
+/// Keys live in the login keychain: `openai` (OPENAI_API_KEY or ~/.config/openai/api_key also
+/// work, handy from a terminal) and `fal` for SAM (FAL_KEY or ~/.config/fal/api_key).
 enum KeyStore {
   static let service = "signal-and-noise-os"
-  static let account = "openai"
 
-  static func load() -> String {
+  static func load(_ account: String = "openai") -> String {
     var q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
                             kSecAttrAccount as String: account, kSecReturnData as String: true]
     var out: AnyObject?
     if SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let d = out as? Data,
        let k = String(data: d, encoding: .utf8), !k.isEmpty { return k }
     q.removeValue(forKey: kSecReturnData as String)
-    if let env = ProcessInfo.processInfo.environment["OPENAI_API_KEY"], !env.isEmpty { return env }
-    let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/openai/api_key")
+    let envName = account == "fal" ? "FAL_KEY" : "OPENAI_API_KEY"
+    if let env = ProcessInfo.processInfo.environment[envName], !env.isEmpty { return env }
+    let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/\(account)/api_key")
     return (try? String(contentsOf: file, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
   }
 
-  static func save(_ key: String) {
+  static func save(_ key: String, account: String = "openai") {
     let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
                             kSecAttrAccount as String: account]
     SecItemDelete(q as CFDictionary)

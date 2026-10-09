@@ -13,6 +13,7 @@ import ScreenCaptureKit
 final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private var settings = Settings.load()
   private var key = KeyStore.load()
+  private var falKey = KeyStore.load("fal")
   private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
   private var workers: [CGDirectDisplayID: DisplayWorker] = [:]
   private var content: SCShareableContent?
@@ -24,6 +25,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   /// For testing against a stub: SNOS_DECISIONS_URL=http://127.0.0.1:8787/v1/decisions
   private let decisionsURL = ProcessInfo.processInfo.environment["SNOS_DECISIONS_URL"].flatMap(URL.init(string:)) ?? Decisions.defaultURL
+  private let samURL = ProcessInfo.processInfo.environment["SNOS_SAM_URL"].flatMap(URL.init(string:)) ?? SAMClient.defaultURL
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     if let button = statusItem.button {
@@ -75,8 +77,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       let excluded = content.applications.filter { $0.processID == getpid() || settings.neverApps.contains($0.bundleIdentifier) }
       let judge = Judge(client: DecisionsClient(key: key, url: decisionsURL), bubbles: settings.bubbles,
                         threshold: settings.threshold, mode: settings.mode)
+      let useSAM = settings.tighterShapes && (!falKey.isEmpty || samURL != SAMClient.defaultURL)
+      let sam = useSAM ? SAMClient(key: falKey, url: samURL) : nil
       for display in content.displays {
         guard let worker = workers[display.displayID] else { continue }
+        worker.sam = sam
+        worker.bubbles = settings.bubbles
         let filter = SCContentFilter(display: display, excludingApplications: excluded, exceptingWindows: [])
         let config = SCStreamConfiguration()
         config.width = display.width   // points: one pixel per point
@@ -172,12 +178,21 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     for g in [GridSpec(cols: 6, rows: 4), GridSpec(cols: 8, rows: 5), GridSpec(cols: 12, rows: 8)] {
       item(finding, "\(g.cols) × \(g.rows) cells") { c in c.settings.grid = g; c.changed() }.state = settings.grid == g ? .on : .off
     }
+    finding.addItem(.separator())
+    let samTitle = falKey.isEmpty && samURL == SAMClient.defaultURL
+      ? "Tighter shapes with SAM (set a fal.ai key first)" : "Tighter shapes with SAM (fal.ai, $0.005 per mask)"
+    item(finding, samTitle) { c in c.settings.tighterShapes.toggle(); c.changed(keepCache: true) }.state = settings.tighterShapes ? .on : .off
     submenu(menu, "Finding regions", finding)
 
     menu.addItem(.separator())
     item(menu, key.isEmpty ? "Set OpenAI key…" : "Change OpenAI key…") { c in
       if let k = c.prompt("OpenAI API key", info: "Stored in your login keychain. Used only for api.openai.com/v1/decisions.", secure: true) {
         KeyStore.save(k); c.key = KeyStore.load(); c.changed(keepCache: true)
+      }
+    }
+    item(menu, falKey.isEmpty ? "Set fal.ai key (for SAM)…" : "Change fal.ai key…") { c in
+      if let k = c.prompt("fal.ai API key", info: "Stored in your login keychain. Used only for fal.run/fal-ai/sam-3/image, to reshape masks.", secure: true) {
+        KeyStore.save(k, account: "fal"); c.falKey = KeyStore.load("fal"); c.changed(keepCache: true)
       }
     }
     item(menu, "Open log") { _ in NSWorkspace.shared.open(Log.url) }
