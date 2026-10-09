@@ -219,8 +219,8 @@ try {
   });
   await opts.setViewport({ width: 1280, height: 1000 });
   await opts.goto(`chrome-extension://${extId}/src/options.html`);
-  await opts.waitForFunction(() => /judged by Jev/.test(document.getElementById('preview-note').textContent), { timeout: 6000 }).catch(() => {});
-  check(/judged by Jev/.test(await opts.$eval('#preview-note', (n) => n.textContent)), `settings preview runs on Jev — "${await opts.$eval('#preview-sum', (n) => n.textContent)}"`);
+  await opts.waitForFunction(() => /judged by TypeSafe Jev/.test(document.getElementById('preview-note').textContent), { timeout: 6000 }).catch(() => {});
+  check(/judged by TypeSafe Jev/.test(await opts.$eval('#preview-note', (n) => n.textContent)), `settings preview runs on Jev — "${await opts.$eval('#preview-sum', (n) => n.textContent)}"`);
   // Tap a bubble: it saves straight away.
   await opts.evaluate(() => [...document.querySelectorAll('#common .bubble')].find((b) => b.textContent.includes('Sports')).click());
   await new Promise((r) => setTimeout(r, 500));
