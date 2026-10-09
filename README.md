@@ -1,14 +1,16 @@
 # Signal & Noise
 
-A Chrome extension that hides posts you don't want on your X timeline. You list what you don't
-want in plain words ("rage bait about politics", "crypto shilling", "engagement bait"), and
-[Jev](https://typesafe.ai) judges each tweet before it scrolls into view. Matches fold into a
-one-line bar that says why, with a **Show** button.
+A Chrome extension that hides posts you don't want on your X timeline. Tap common kinds of noise
+as bubbles (political rage bait, crypto shilling, engagement bait, spoilers…) or type your own in
+plain words ("anything about the Oilers"), and [Jev](https://typesafe.ai) judges each tweet against
+them, one-shot, before it scrolls into view. Matches fold into a one-line bar that says why; runs of
+hidden posts share one bar. After **Show**, a post asks "Good hide / Shouldn't have hidden this";
+those answers are kept locally (`feedbackLog`) as the start of a real-world eval set.
 
 ## Install (unpacked)
 
 1. `chrome://extensions` → turn on **Developer mode** → **Load unpacked** → pick this folder.
-2. The settings page opens. Paste a TypeSafe API key, edit the mute list, click **Test key**, then **Save**.
+2. The settings page opens. Paste a TypeSafe API key under **TypeSafe key**, tap bubbles or add your own. Changes save as you go.
 3. Open x.com.
 
 ## How it works

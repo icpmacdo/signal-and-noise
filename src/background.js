@@ -2,7 +2,7 @@
 // caches verdicts per tweet, and keeps a tally for the popup. Any failure answers "show" so the
 // timeline is never held hostage by the API.
 import {
-  MAX_BATCH, MODEL, normaliseSettings, requestFor, verdictsFrom, isAllowed, settingsFingerprint,
+  MAX_BATCH, MODEL, normaliseSettings, requestFor, verdictsFrom, isAllowed, settingsFingerprint, mutesOf,
 } from './wire.js';
 
 const ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
@@ -38,7 +38,7 @@ async function askJev(tweets, s) {
 
 async function judge(tweets) {
   const s = await settings();
-  if (!s.enabled || !s.apiKey || !s.mutes.length) return { verdicts: {}, off: true };
+  if (!s.enabled || !s.apiKey || !mutesOf(s).length) return { verdicts: {}, off: true };
   const fp = settingsFingerprint(s);
   const verdicts = {};
   const todo = [];
@@ -63,21 +63,49 @@ async function judge(tweets) {
   return { verdicts, error };
 }
 
-async function tally(hidden) {
-  const today = new Date().toISOString().slice(0, 10);
-  const { stats } = await chrome.storage.local.get('stats');
-  const st = stats?.day === today ? stats : { day: today, judged: 0, hidden: 0, byReason: {} };
-  st.judged += hidden.judged;
-  for (const reason of hidden.reasons) {
-    st.hidden += 1;
-    st.byReason[reason] = (st.byReason[reason] || 0) + 1;
-  }
-  await chrome.storage.local.set({ stats: st });
+// Stats writes are serialised so concurrent tabs can't lose each other's increments.
+let statsChain = Promise.resolve();
+function updateStats(fn) {
+  statsChain = statsChain.then(async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const { stats } = await chrome.storage.local.get('stats');
+    const st = stats?.day === today ? stats : { day: today, judged: 0, hidden: 0, shown: 0, good: 0, wrong: 0, byReason: {} };
+    fn(st);
+    await chrome.storage.local.set({ stats: st });
+  }).catch(() => {});
+  return statsChain;
+}
+
+function tally(hidden) {
+  return updateStats((st) => {
+    st.judged += hidden.judged;
+    for (const reason of hidden.reasons) {
+      st.hidden += 1;
+      st.byReason[reason] = (st.byReason[reason] || 0) + 1;
+    }
+  });
+}
+
+// "Good hide" / "Shouldn't have hidden this" after Show. Kept locally (last 500) as the start of
+// a real-world eval set: the only signal we ever get about hides that were wrong.
+async function feedback(msg) {
+  await updateStats((st) => { st[msg.verdict === 'wrong' ? 'wrong' : 'good'] = (st[msg.verdict === 'wrong' ? 'wrong' : 'good'] || 0) + 1; });
+  const { feedbackLog = [] } = await chrome.storage.local.get('feedbackLog');
+  feedbackLog.push({ at: Date.now(), verdict: msg.verdict, reason: msg.reason, pKeep: msg.pKeep, tweet: msg.tweet });
+  await chrome.storage.local.set({ feedbackLog: feedbackLog.slice(-500) });
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (msg?.type === 'judge') {
     judge(msg.tweets || []).then(reply, (e) => reply({ verdicts: {}, error: String(e) }));
+    return true;
+  }
+  if (msg?.type === 'shown') {
+    updateStats((st) => { st.shown = (st.shown || 0) + (msg.count || 1); }).then(() => reply({ ok: true }));
+    return true;
+  }
+  if (msg?.type === 'feedback') {
+    feedback(msg).then(() => reply({ ok: true }), () => reply({ ok: false }));
     return true;
   }
   if (msg?.type === 'tally') {

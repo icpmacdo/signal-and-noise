@@ -2,52 +2,65 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Signal & Noise settings</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Signal &amp; Noise settings</title>
 <link rel="stylesheet" href="ui.css">
 </head>
 <body>
-<main class="page">
-  <h1>Signal &amp; Noise</h1>
-  <p class="lede">Describe the posts you don't want on your X timeline. Jev reads each tweet before it scrolls into view and folds away the ones that match.</p>
-
-  <section>
-    <h2>Don't show me</h2>
-    <p class="hint">One per line, in plain words. Be specific: "posts dunking on other people" works better than "negativity".</p>
-    <textarea id="mutes" rows="7" spellcheck="true"></textarea>
-  </section>
-
-  <section>
-    <h2>How strict</h2>
-    <div class="slider">
-      <span>Only clear matches</span>
-      <input id="strictness" type="range" min="0.05" max="0.9" step="0.05">
-      <span>Anything close</span>
-    </div>
-    <p class="hint" id="strictness-note"></p>
-  </section>
-
-  <section>
-    <h2>Always show these accounts</h2>
-    <p class="hint">Handles separated by spaces or commas. Their posts are never sent to Jev.</p>
-    <input id="allow" type="text" placeholder="@friend @favourite_writer">
-  </section>
-
-  <section>
-    <h2>TypeSafe API key</h2>
-    <p class="hint">Jev runs on your own key from <a href="https://typesafe.ai" target="_blank" rel="noopener">typesafe.ai</a>. It stays in this browser and is only sent to api.typesafe.ai.</p>
-    <div class="row">
-      <input id="key" type="password" autocomplete="off" placeholder="ts-…">
-      <button id="test" type="button" class="secondary">Test key</button>
-    </div>
-    <p class="hint" id="test-result" role="status"></p>
-  </section>
-
-  <section class="row">
+<div class="page">
+  <header class="topbar">
+    <div class="brand"><span class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M3 12h3l2-5 3 10 2.5-7 1.5 2h6"></path></svg></span>Signal &amp; Noise</div>
     <label class="toggle"><input id="enabled" type="checkbox"> Filtering on</label>
-    <button id="save" type="button">Save</button>
-    <span id="saved" class="hint" role="status"></span>
-  </section>
-</main>
+  </header>
+
+  <div class="cols">
+    <main class="main">
+      <div class="intro">
+        <h1>What's noise to you?</h1>
+        <p class="lede">Tap the kinds of posts you'd rather not see, or type your own in plain words. Jev reads each post before it reaches your screen and folds away the ones that match.</p>
+      </div>
+
+      <section class="block">
+        <div class="block-head"><h2>Common picks</h2><span class="hint" id="count"></span></div>
+        <div class="bubbles" id="common"></div>
+      </section>
+
+      <section class="block">
+        <h2>Your own</h2>
+        <form id="custom-form" class="add-row">
+          <label for="custom" class="sr">Describe something you don't want to see</label>
+          <input id="custom" type="text" maxlength="200" autocomplete="off" placeholder="e.g. spoilers for Severance, anything about the Oilers, posts by reply guys">
+          <button type="submit" class="dark">Add</button>
+        </form>
+        <div class="bubbles" id="customs"></div>
+        <div class="ideas" id="ideas"><span class="hint">Ideas:</span></div>
+        <p class="hint">Anything you can describe works: a topic, a tone, a kind of post, a show you haven't watched yet.</p>
+      </section>
+
+      <section class="block rule">
+        <h2>Always show</h2>
+        <p class="hint">Their posts are never checked. Handles separated by spaces or commas.</p>
+        <input id="allow" type="text" placeholder="@friend  @favourite_writer" class="field">
+        <details id="key-box">
+          <summary>TypeSafe key</summary>
+          <p class="hint">Jev runs on your own key from <a href="https://typesafe.ai" target="_blank" rel="noopener">typesafe.ai</a>. It stays in this browser and is only sent to api.typesafe.ai.</p>
+          <div class="add-row">
+            <input id="key" type="password" autocomplete="off" placeholder="ts-…" class="field">
+            <button id="test" type="button" class="secondary">Test key</button>
+          </div>
+          <p class="hint" id="test-result" role="status"></p>
+        </details>
+      </section>
+      <p class="hint" id="saved" role="status"></p>
+    </main>
+
+    <aside class="side">
+      <div class="block-head"><h2 class="side-title">Preview</h2><span class="hint" id="preview-sum"></span></div>
+      <p class="hint" id="preview-note"></p>
+      <div class="preview" id="preview"></div>
+    </aside>
+  </div>
+</div>
 <script type="module" src="options.js"></script>
 </body>
 </html>

@@ -6,17 +6,26 @@
 <link rel="stylesheet" href="ui.css">
 </head>
 <body class="popup">
-  <div class="row spread">
-    <strong>Signal &amp; Noise</strong>
-    <label class="toggle"><input id="enabled" type="checkbox"> On</label>
+  <div class="topbar">
+    <div class="brand small-brand"><span class="logo" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M3 12h3l2-5 3 10 2.5-7 1.5 2h6"></path></svg></span>Signal &amp; Noise</div>
+    <button type="button" id="enabled" class="switch" role="switch" aria-checked="true" aria-label="Filtering on or off"><span></span></button>
   </div>
   <p id="status" class="hint"></p>
-  <div id="today">
-    <div class="stat"><span id="hidden">0</span> hidden today <span class="hint">of <span id="judged">0</span> checked</span></div>
-    <ul id="reasons"></ul>
+  <div class="stat"><span id="hidden" class="stat-n">0</span><span class="stat-k">posts folded away today<br><span class="hint">of <span id="judged">0</span> checked</span></span></div>
+  <div class="block">
+    <div class="block-head"><h2>Muting</h2><span class="hint">tap to remove</span></div>
+    <div class="bubbles small" id="mutes"></div>
+    <form id="add" class="add-row">
+      <label for="add-input" class="sr">Mute something else</label>
+      <input id="add-input" type="text" maxlength="200" autocomplete="off" placeholder="Mute something else…">
+      <button type="submit" class="dark">Add</button>
+    </form>
   </div>
   <p id="error" class="error" hidden></p>
-  <button id="settings" type="button" class="secondary wide">Edit what to mute</button>
+  <div class="foot">
+    <p class="hint" id="feedback"></p>
+    <button id="settings" type="button" class="secondary wide">Choose what to mute</button>
+  </div>
 <script type="module" src="popup.js"></script>
 </body>
 </html>

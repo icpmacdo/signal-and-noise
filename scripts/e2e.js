@@ -19,7 +19,7 @@ const TWEETS = [
   { id: '1001', handle: 'rustacean', text: 'Shipped a small crate that parses EXIF 3x faster. Benchmarks and the trick in the thread.', expect: 'show' },
   { id: '1002', handle: 'angrypundit', text: "The other party wants to DESTROY this country. If you can't see it, you're part of the problem. 🤬", expect: 'hide' },
   { id: '1003', handle: 'moonboi', text: '🚀🚀 $PEPE2 is going 100x by Friday. Not financial advice. Get in before it is too late 👇', expect: 'hide' },
-  { id: '1004', handle: 'baker_jo', text: 'Third attempt at a sourdough loaf and it finally has an open crumb. Photo below.', expect: 'show' },
+  { id: '1004', handle: 'baker_jo', text: 'Third attempt at a sourdough loaf and it finally has an open crumb. Photo below.', expect: 'hide' }, // custom mute
   { id: '1005', handle: 'growthguru', text: "Like if you agree, ignore if you're a hater 🙏 Who's still up? Reply with your city!", expect: 'hide' },
   { id: '1006', handle: 'policywonk', text: 'New CBO report on the infrastructure bill: cost estimates revised down 4%. Table on page 12.', expect: 'show' },
 ];
@@ -67,17 +67,15 @@ try {
     : r.continue()));
 
   // 1. No key: everything must show (fail open, no pending state).
-  await worker.evaluate(() => chrome.storage.local.set({ settings: { enabled: true, apiKey: '', mutes: ['x'] } }));
+  await worker.evaluate(() => chrome.storage.local.set({ settings: { enabled: true, apiKey: '', picked: ['rage'] } }));
   await page.goto('https://x.com/home');
   await new Promise((r) => setTimeout(r, 800));
   const noKey = await page.$$eval('article', (as) => as.filter((a) => a.classList.contains('jm-pending') || a.classList.contains('jm-hidden')).length);
   check(noKey === 0, 'without a key nothing is hidden or held back');
 
-  // 2. With the key and default mutes.
+  // 2. With the key, the three default bubbles and one typed mute.
   await worker.evaluate((apiKey) => chrome.storage.local.set({ settings: {
-    enabled: true, apiKey, strictness: 0.35, allowHandles: [],
-    mutes: ['Rage bait or outrage-farming about politics', 'Crypto, memecoin or get-rich-quick shilling',
-      "Engagement bait: 'like if you agree', reply or repost farming, fake giveaways"],
+    enabled: true, apiKey, allowHandles: [], picked: ['rage', 'crypto', 'engage'], customs: ['Home baking and bread'],
   } }), key);
   const t0 = Date.now();
   await page.goto('https://x.com/home');
@@ -90,6 +88,11 @@ try {
   let st = await state();
   for (const t of TWEETS) check((st[t.id]?.hidden ? 'hide' : 'show') === t.expect, `@${t.handle} ${t.expect === 'hide' ? 'hidden' : 'shown'}${st[t.id]?.bar ? ` — "${st[t.id].bar.replace('Show', '').trim()}"` : ''}`);
 
+  const bars = () => page.$$eval('.jm-bar:not(.jm-merged)', (bs) => bs.map((b) => b.textContent.replace('Show', '').trim()));
+  let visible = await bars();
+  check(visible.length === 1 && /^4 posts hidden · /.test(visible[0]), `four hides in a row share one bar — "${visible[0]}"`);
+  check(/Home baking and bread/.test(visible[0] || ''), 'a typed mute is judged one-shot and named on the bar');
+
   mkdirSync(join(ROOT, 'shots'), { recursive: true });
   await page.screenshot({ path: join(ROOT, 'shots/timeline.png') });
 
@@ -100,14 +103,32 @@ try {
   st = await state();
   for (const t of LATE) check((st[t.id]?.hidden ? 'hide' : 'show') === t.expect, `late @${t.handle} ${t.expect === 'hide' ? 'hidden' : 'shown'}`);
 
-  // 4. Show reveals the tweet and removes the bar.
-  await page.click('.jm-bar button');
+  visible = await bars();
+  check(visible.length === 2, `a hide after a visible tweet gets its own bar (${visible.length} bars)`);
+
+  // 4. Show on the grouped bar reveals the whole run, each with feedback chips.
+  await page.click('.jm-bar:not(.jm-merged) .jm-show');
+  await page.waitForFunction(() => document.querySelectorAll('.jm-shown').length >= 4, { timeout: 2000 }).catch(() => {});
   st = await state();
-  check(Object.values(st).filter((v) => v.hidden).length === LATE.concat(TWEETS).filter((t) => t.expect === 'hide').length - 1, 'Show reveals one hidden tweet');
+  check(Object.values(st).filter((v) => v.hidden).length === 1, 'Show on a grouped bar reveals all four');
+  check(await page.$$eval('.jm-shown', (x) => x.length) === 4, 'each revealed post says why it was hidden and asks for feedback');
+  await page.screenshot({ path: join(ROOT, 'shots/revealed.png') });
+
+  // Feedback: "Shouldn't have hidden this" on the baking post is logged with its reason.
+  await page.evaluate(() => [...document.querySelector('article[data-jm-id="1004"]').previousElementSibling.querySelectorAll('.jm-chip')].find((b) => /Shouldn/.test(b.textContent)).click());
+  await new Promise((r) => setTimeout(r, 300));
+  const { feedbackLog } = await worker.evaluate(() => chrome.storage.local.get('feedbackLog'));
+  const last = feedbackLog?.at(-1);
+  check(last?.verdict === 'wrong' && last?.reason === 'Home baking and bread' && last?.tweet?.id === '1004', 'feedback is recorded with the tweet and the mute that hid it');
+  check(/Noted/.test(await page.$eval('article[data-jm-id="1004"]', (a) => a.previousElementSibling.textContent)), 'the chip row turns into a thank-you');
+
+  // Hide again puts it back behind a bar.
+  await page.evaluate(() => [...document.querySelector('article[data-jm-id="1002"]').previousElementSibling.querySelectorAll('button')].find((b) => b.textContent === 'Hide again').click());
+  check(await page.$eval('article[data-jm-id="1002"]', (a) => a.classList.contains('jm-hidden')), 'Hide again hides it');
 
   // 5. X recycles cells: swap a shown tweet's contents for a shilling one.
   await page.evaluate(() => {
-    const a = document.querySelector('article[data-jm-id="1004"]');
+    const a = document.querySelector('article[data-jm-id="1006"]');
     a.querySelector('a').setAttribute('href', '/moon2/status/1009');
     a.querySelector('[data-testid=User-Name]').innerHTML = '<span>moon2</span><span>@moon2</span>';
     a.querySelector('[data-testid=tweetText]').textContent = 'Buy $DOGE2 now, guaranteed 50x, this is your last chance to get rich 🚀';
@@ -121,7 +142,7 @@ try {
     await chrome.storage.local.set({ settings: { ...settings, enabled: false } });
   });
   await new Promise((r) => setTimeout(r, 300));
-  check(await page.$$eval('article.jm-hidden, .jm-bar', (x) => x.length) === 0, 'turning it off unhides everything');
+  check(await page.$$eval('article.jm-hidden, .jm-ui', (x) => x.length) === 0, 'turning it off unhides everything');
 
   const { stats } = await worker.evaluate(() => chrome.storage.local.get('stats'));
   check(stats?.hidden >= 4, `popup tally recorded ${stats?.hidden} hidden of ${stats?.judged} judged`);
@@ -129,14 +150,27 @@ try {
   // Popup screenshot.
   const extId = new URL(sw.url()).host;
   const popup = await browser.newPage();
-  await popup.setViewport({ width: 300, height: 260 });
+  await popup.setViewport({ width: 360, height: 560 });
   await popup.goto(`chrome-extension://${extId}/src/popup.html`);
   await popup.screenshot({ path: join(ROOT, 'shots/popup.png') });
   const opts = await browser.newPage();
-  await opts.setViewport({ width: 700, height: 900 });
+  await worker.evaluate(async () => {
+    const { settings } = await chrome.storage.local.get('settings');
+    await chrome.storage.local.set({ settings: { ...settings, enabled: true } });
+  });
+  await opts.setViewport({ width: 1280, height: 1000 });
   await opts.goto(`chrome-extension://${extId}/src/options.html`);
-  await new Promise((r) => setTimeout(r, 300));
-  await opts.screenshot({ path: join(ROOT, 'shots/options.png') });
+  await opts.waitForFunction(() => /judged by Jev/.test(document.getElementById('preview-note').textContent), { timeout: 6000 }).catch(() => {});
+  check(/judged by Jev/.test(await opts.$eval('#preview-note', (n) => n.textContent)), `settings preview runs on Jev — "${await opts.$eval('#preview-sum', (n) => n.textContent)}"`);
+  // Tap a bubble: it saves straight away.
+  await opts.evaluate(() => [...document.querySelectorAll('#common .bubble')].find((b) => b.textContent.includes('Sports')).click());
+  await new Promise((r) => setTimeout(r, 500));
+  const saved = await worker.evaluate(() => chrome.storage.local.get('settings'));
+  check(saved.settings.picked.includes('sports'), 'tapping a bubble saves it');
+  await opts.screenshot({ path: join(ROOT, 'shots/options.png'), fullPage: true });
+  await opts.setViewport({ width: 420, height: 900 });
+  await new Promise((r) => setTimeout(r, 200));
+  check(await opts.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'settings page has no sideways scroll at 420 px');
 } finally {
   await browser.close();
 }

@@ -1,50 +1,92 @@
-// What we ask Jev about a batch of tweets, and how its answers become hide/show verdicts. Pure:
-// no network, no chrome.*, so it runs under `node --test` and the extension asks the same questions.
+// What we ask Jev about a tweet, and how its answer becomes a hide/show verdict. Pure: no
+// network, no chrome.*, so it runs under `node --test` and the extension asks the same questions.
 //
 // One request per tweet: in a shared request Jev compares tweets with each other, and 11 of 40
 // borderline tweets flipped verdict depending only on their neighbours (eval/synthetic). The tweet
-// gets one `choice` question whose labels are "keep" plus one per mute; we hide only when "keep"
-// is unlikely enough for the reader's strictness.
+// gets one `choice` question whose labels are "keep" plus one per mute, the common picks and
+// whatever the reader typed. Jev judges every mute one-shot; there is nothing per mute to tune.
 
 export const MAX_BATCH = 1;
-// Pinned so a model update can't silently move every threshold; re-run the eval before bumping.
+// Pinned so a model update can't silently move what gets hidden; re-run the eval before bumping.
 export const MODEL = 'jev-1.13.0';
+// Hide when Jev thinks a mute is more likely than "keep".
+export const HIDE_BELOW = 0.5;
+
+// The bubbles on the settings page. The hint goes to Jev with the label, so it is written for both.
+export const COMMON = [
+  { id: 'rage', label: 'Political rage bait', hint: 'outrage-farming about politics' },
+  { id: 'crypto', label: 'Crypto & memecoin shilling', hint: 'coin pumps, "100x" calls, wallet-connect links' },
+  { id: 'engage', label: 'Engagement bait', hint: "'like if you agree', reply or repost farming, fake giveaways" },
+  { id: 'hype', label: 'Vague AI hype', hint: "'this changes everything', 'X is dead', claims with no substance" },
+  { id: 'dunk', label: 'Dunking & pile-ons', hint: 'mocking or quote-dunking someone' },
+  { id: 'doom', label: 'Doom posting', hint: "'we're all cooked', collapse is coming" },
+  { id: 'hustle', label: 'Hustle & get-rich-quick', hint: 'passive income and side-hustle gurus' },
+  { id: 'flex', label: 'Revenue flexing', hint: "'I made $40k MRR in 30 days' posts" },
+  { id: 'thread', label: 'Thread bait', hint: "'10 tools that will save you 10 hours, a thread'" },
+  { id: 'culture', label: 'Culture-war bait', hint: 'gender wars and identity fights posted for clicks' },
+  { id: 'sports', label: 'Sports', hint: 'scores, trades, hot takes' },
+  { id: 'celeb', label: 'Celebrity gossip', hint: 'who is dating whom' },
+  { id: 'spoil', label: 'TV & movie spoilers', hint: 'plot details for shows and films' },
+  { id: 'violence', label: 'Graphic violence', hint: 'fights, accidents, war footage' },
+  { id: 'thirst', label: 'Thirst traps', hint: 'suggestive selfies posted for engagement' },
+  { id: 'slop', label: 'AI slop images', hint: 'low-effort generated pictures' },
+  { id: 'ads', label: 'Promoted posts', hint: 'ads in the timeline' },
+];
+const COMMON_BY_ID = Object.fromEntries(COMMON.map((c) => [c.id, c]));
 
 export const DEFAULT_SETTINGS = {
   enabled: true,
   apiKey: '',
-  mutes: [
-    'Rage bait or outrage-farming about politics',
-    'Crypto, memecoin or get-rich-quick shilling',
-    "Engagement bait: 'like if you agree', reply or repost farming, fake giveaways",
-  ],
-  // Hide when P(keep) falls below this. Lower = only hide clear matches.
-  strictness: 0.35,
+  picked: ['rage', 'crypto', 'engage'],
+  customs: [],
   allowHandles: [],
+};
+
+// Settings saved before the bubble picker held free-text `mutes`; the three old defaults map onto
+// bubbles and anything else becomes a custom mute.
+const OLD_DEFAULTS = {
+  'Rage bait or outrage-farming about politics': 'rage',
+  'Crypto, memecoin or get-rich-quick shilling': 'crypto',
+  "Engagement bait: 'like if you agree', reply or repost farming, fake giveaways": 'engage',
 };
 
 /** Normalise whatever is in storage into a usable settings object. */
 export function normaliseSettings(raw = {}) {
-  const s = { ...DEFAULT_SETTINGS, ...raw };
-  s.mutes = (Array.isArray(s.mutes) ? s.mutes : []).map((m) => String(m).trim()).filter(Boolean);
+  const r = { ...raw };
+  if (Array.isArray(r.mutes) && !Array.isArray(r.picked) && !Array.isArray(r.customs)) {
+    r.picked = []; r.customs = [];
+    for (const m of r.mutes) (OLD_DEFAULTS[m] ? r.picked : r.customs).push(OLD_DEFAULTS[m] || m);
+  }
+  const s = { ...DEFAULT_SETTINGS, ...r };
+  delete s.mutes; delete s.strictness;
+  s.picked = [...new Set((Array.isArray(s.picked) ? s.picked : []).filter((id) => COMMON_BY_ID[id]))];
+  const seen = new Set();
+  s.customs = (Array.isArray(s.customs) ? s.customs : []).map((m) => String(m).trim().slice(0, 200))
+    .filter((m) => m && !seen.has(m.toLowerCase()) && seen.add(m.toLowerCase()));
   s.allowHandles = (Array.isArray(s.allowHandles) ? s.allowHandles : [])
     .map((h) => String(h).trim().replace(/^@/, '').toLowerCase()).filter(Boolean);
-  const k = Number(s.strictness);
-  s.strictness = Number.isFinite(k) ? Math.min(0.95, Math.max(0.05, k)) : DEFAULT_SETTINGS.strictness;
   s.apiKey = String(s.apiKey || '').trim();
   s.enabled = s.enabled !== false;
   return s;
 }
 
-/** Cache key part that changes whenever a verdict could change. */
-export function settingsFingerprint(s) {
-  return JSON.stringify([s.mutes, s.strictness]);
+/** Every active mute: key (sent to Jev), label (shown to the reader), text (what Jev reads). */
+export function mutesOf(s) {
+  return [
+    ...s.picked.map((id) => ({ key: `c_${id}`, label: COMMON_BY_ID[id].label, text: `${COMMON_BY_ID[id].label}: ${COMMON_BY_ID[id].hint}` })),
+    ...s.customs.map((c, i) => ({ key: `u${i}`, label: c, text: c })),
+  ];
 }
 
-/** The criteria map shared by every question: "keep" plus m0..mN for the mutes. */
+/** Cache key part that changes whenever a verdict could change. */
+export function settingsFingerprint(s) {
+  return JSON.stringify([s.picked, s.customs]);
+}
+
+/** The criteria map: "keep" plus one entry per active mute. */
 export function criteriaFor(mutes) {
   const criteria = { keep: "none of these; it's an ordinary post the reader would want to see" };
-  mutes.forEach((m, i) => { criteria[`m${i}`] = m; });
+  for (const m of mutes) criteria[m.key] = m.text;
   return criteria;
 }
 
@@ -58,50 +100,52 @@ export function tweetState(t) {
 }
 
 /**
- * One request for up to MAX_BATCH tweets. Question keys are t0..tN so arbitrary tweet ids never
- * end up as JSON keys the API might reject; `ids` maps them back.
+ * One request for one tweet (extra tweets are ignored: see MAX_BATCH). The question key is t0 so
+ * an arbitrary tweet id never ends up as a JSON key the API might reject; `ids` maps it back.
  */
 export function requestFor(tweets, settings) {
-  if (!settings.mutes.length || !tweets.length) return null;
-  const batch = tweets.slice(0, MAX_BATCH);
-  const criteria = criteriaFor(settings.mutes);
-  const state = { tweets: {} };
-  const questions = {};
-  const ids = {};
-  batch.forEach((t, i) => {
-    const key = `t${i}`;
-    ids[key] = t.id;
-    state.tweets[key] = tweetState(t);
-    questions[key] = {
-      type: 'choice',
-      instructions: `Judge only tweet ${key} in the state. A reader scrolling X has listed kinds of posts `
-        + `they don't want to see. Does tweet ${key} clearly fall into one of them? Answer "keep" `
-        + `unless it clearly does; an ordinary post that merely mentions a topic is "keep".`,
-      criteria,
-    };
-  });
-  return { body: { state, questions }, ids };
+  const mutes = mutesOf(settings);
+  if (!mutes.length || !tweets.length) return null;
+  const t = tweets[0];
+  return {
+    body: {
+      state: { tweet: tweetState(t) },
+      questions: {
+        t0: {
+          type: 'choice',
+          // Mutes are a mix of kinds of post ("engagement bait") and topics ("anything about the
+          // Oilers"). "About, or an example of" covers both; the older "clearly a kind of post"
+          // wording left topic mutes mostly unhidden (sourdough vs "home baking": P(keep) 0.75 → 0.13).
+          instructions: 'A reader has muted the things listed below on X. Is this tweet about, or an example '
+            + 'of, any of them? Pick that one. Answer "keep" if it isn\'t, including when it only mentions '
+            + 'one in passing.',
+          criteria: criteriaFor(mutes),
+        },
+      },
+    },
+    ids: { t0: t.id },
+  };
 }
 
 /** Turn Jev's answers into { [tweetId]: verdict }. Missing answers are left out (shown). */
 export function verdictsFrom(answers, ids, settings) {
+  const byKey = Object.fromEntries(mutesOf(settings).map((m) => [m.key, m]));
   const out = {};
   for (const [key, id] of Object.entries(ids)) {
     const a = answers?.[key];
     if (!a || a.type !== 'choice') continue;
     const probs = a.probabilities || {};
     const pKeep = typeof probs.keep === 'number' ? probs.keep : (a.choice === 'keep' ? 1 : 0);
-    // The most likely muted label, even if "keep" won, so the bar can say why.
+    // The most likely mute, even if "keep" won, so the bar can say why.
     let mute = null; let best = -1;
     for (const [label, p] of Object.entries(probs)) {
       if (label !== 'keep' && p > best) { best = p; mute = label; }
     }
     if (!mute && a.choice !== 'keep') mute = a.choice;
-    const idx = mute ? Number(mute.slice(1)) : -1;
     out[id] = {
-      hide: pKeep < settings.strictness,
+      hide: pKeep < HIDE_BELOW,
       pKeep: Math.round(pKeep * 100) / 100,
-      reason: idx >= 0 ? settings.mutes[idx] ?? null : null,
+      reason: byKey[mute]?.label ?? null,
     };
   }
   return out;
