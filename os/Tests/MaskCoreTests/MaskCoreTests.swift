@@ -40,6 +40,7 @@ final class GridTests: XCTestCase {
     XCTAssertEqual(spec.label(0), "A1")
     XCTAssertEqual(spec.label(6), "C2")
     XCTAssertEqual(GridSpec("8x5"), GridSpec(cols: 8, rows: 5))
+    XCTAssertEqual(GridSpec.fitting(width: 3008, height: 1692), GridSpec(cols: 14, rows: 8))
   }
 
   func testMergeCoversExactlyTheMaskedCells() {
@@ -94,7 +95,7 @@ final class TrackerTests: XCTestCase {
   let fine = Verdict(hide: false, reasons: [], scores: ["ads": 0.1])
 
   func testJudgesAfterSettlingThenMasks() {
-    let t = Tracker(spec: spec)
+    let t = Tracker(spec: spec, movementCells: 2)
     var s = t.observe([h(1), h(2)], judging: false) // first frame: everything is new
     XCTAssertEqual(s.toJudge, [])
     s = t.observe([h(1), h(2)], judging: false)    // held still: ask
@@ -104,7 +105,7 @@ final class TrackerTests: XCTestCase {
   }
 
   func testMovementDropsMaskAndCacheBringsItBack() {
-    let t = Tracker(spec: spec)
+    let t = Tracker(spec: spec, movementCells: 2)
     _ = t.observe([h(1), h(2)], judging: false)
     let s = t.observe([h(1), h(2)], judging: false)
     t.record([0: ad, 1: fine], judgedHashes: s.judgedHashes)
@@ -118,7 +119,7 @@ final class TrackerTests: XCTestCase {
   }
 
   func testLateVerdictForChangedCellIsIgnored() {
-    let t = Tracker(spec: spec)
+    let t = Tracker(spec: spec, movementCells: 2)
     _ = t.observe([h(1), h(2)], judging: false)
     let s = t.observe([h(1), h(2)], judging: false)
     _ = t.observe([h(5), h(2)], judging: true)            // cell 0 changed while the request was out
@@ -127,7 +128,7 @@ final class TrackerTests: XCTestCase {
   }
 
   func testRevealHoldsUntilContentChanges() {
-    let t = Tracker(spec: spec)
+    let t = Tracker(spec: spec, movementCells: 2)
     _ = t.observe([h(1), h(2)], judging: false)
     let s = t.observe([h(1), h(2)], judging: false)
     t.record([0: ad], judgedHashes: s.judgedHashes)
@@ -137,6 +138,62 @@ final class TrackerTests: XCTestCase {
     _ = t.observe([h(1), h(2)], judging: false)            // the same ad back: still revealed
     _ = t.observe([h(1), h(2)], judging: false)
     XCTAssertTrue(t.masked.isEmpty)
+  }
+}
+
+final class AnimationTests: XCTestCase {
+  // Four cells in a row; a patch of 3+ changed cells is movement.
+  let spec = GridSpec(cols: 4, rows: 1)
+  func h(_ seed: UInt64) -> RegionHash { RegionHash(bits: [seed &* 0x9E3779B97F4A7C15, ~seed, seed << 7, seed ^ 0xFFFF0000FFFF]) }
+  let ad = Verdict(hide: true, reasons: ["Ads"], scores: ["ads": 0.9])
+  func tracker() -> Tracker { Tracker(spec: spec, movementCells: 3, animatedTicks: 3, rejudgeTicks: 10) }
+
+  func masked(_ t: Tracker) -> [Int] { t.masked.keys.sorted() }
+
+  /// Settle a first frame and mask cell 1.
+  func settledWithAdAt1(_ t: Tracker) {
+    _ = t.observe([h(1), h(2), h(3), h(4)], judging: false)
+    let s = t.observe([h(1), h(2), h(3), h(4)], judging: false)
+    t.record([1: ad], judgedHashes: s.judgedHashes)
+  }
+
+  func testPlayingVideoKeepsItsMask() {
+    let t = tracker()
+    settledWithAdAt1(t)
+    for k in 0..<6 { _ = t.observe([h(1), h(100 + UInt64(k)), h(3), h(4)], judging: false) } // the ad plays
+    XCTAssertEqual(masked(t), [1])
+  }
+
+  func testScrollDropsMasks() {
+    let t = tracker()
+    settledWithAdAt1(t)
+    let s = t.observe([h(5), h(6), h(7), h(4)], judging: false) // three neighbours change at once
+    XCTAssertTrue(s.masksChanged)
+    XCTAssertEqual(s.moved, 3)
+    XCTAssertEqual(masked(t), [])
+  }
+
+  func testAnimatedCellIsJudgedWithoutSettlingThenRateLimited() {
+    let t = tracker()
+    settledWithAdAt1(t)
+    var judgedAt: [Int] = []
+    for k in 0..<20 {
+      let s = t.observe([h(1), h(2), h(200 + UInt64(k)), h(4)], judging: false) // cell 2 never holds still
+      if s.toJudge.contains(2) { judgedAt.append(k) }
+    }
+    XCTAssertEqual(judgedAt.count, 2, "\(judgedAt)")             // once after it ran a while, once more after the rejudge gap
+    XCTAssertGreaterThanOrEqual(judgedAt[1] - judgedAt[0], 10)
+  }
+
+  func testRevealedVideoStaysRevealedWhileItPlays() {
+    let t = tracker()
+    settledWithAdAt1(t)
+    t.reveal([1])
+    for k in 0..<20 {
+      let s = t.observe([h(1), h(300 + UInt64(k)), h(3), h(4)], judging: false)
+      t.record(Dictionary(uniqueKeysWithValues: s.toJudge.map { ($0, ad) }), judgedHashes: s.judgedHashes)
+    }
+    XCTAssertEqual(masked(t), [])
   }
 }
 

@@ -10,7 +10,10 @@ struct Settings: Codable, Equatable {
   /// Grid won on real pages (2026-10-09, six sites via OpenRouter): ~0.7 s per screen vs ~1.8 s,
   /// 2 requests vs 40, and it covered more of each ad.
   var mode = Mode.grid
-  var grid = GridSpec(cols: 8, rows: 5)
+  /// Nil: sized to each display (cells about 220 points across). 8x5 is the default: on WSJ
+  /// screenshots from a 6K display it caught the banner and video ads, where 14x8 caught
+  /// scattered pieces of them (2026-10-09).
+  var grid: GridSpec? = GridSpec(cols: 8, rows: 5)
   /// Reshape masks with SAM 3 on fal.ai when a fal key is set.
   var tighterShapes = true
   /// Apps whose windows are never captured, and while one is in front nothing runs at all.
@@ -32,7 +35,7 @@ struct Settings: Codable, Equatable {
     customs = try c.decodeIfPresent([String].self, forKey: .customs) ?? d.customs
     threshold = try c.decodeIfPresent(Double.self, forKey: .threshold) ?? d.threshold
     mode = try c.decodeIfPresent(Mode.self, forKey: .mode) ?? d.mode
-    grid = try c.decodeIfPresent(GridSpec.self, forKey: .grid) ?? d.grid
+    grid = c.contains(.grid) ? try c.decodeIfPresent(GridSpec.self, forKey: .grid) : d.grid
     tighterShapes = try c.decodeIfPresent(Bool.self, forKey: .tighterShapes) ?? d.tighterShapes
     neverApps = try c.decodeIfPresent([String].self, forKey: .neverApps) ?? d.neverApps
   }

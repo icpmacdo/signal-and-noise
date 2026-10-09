@@ -36,7 +36,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     menu.delegate = self
     statusItem.menu = menu
     if !CGPreflightScreenCaptureAccess() { CGRequestScreenCaptureAccess() }
-    Log.write("started; mode \(settings.mode.rawValue), grid \(settings.grid.cols)x\(settings.grid.rows), bubbles \(settings.bubbles.map(\.label))")
+    Log.write("started; mode \(settings.mode.rawValue), grid \(settings.grid?.description ?? "auto"), bubbles \(settings.bubbles.map(\.label))")
     loop = Task { @MainActor in
       while !Task.isCancelled {
         await tick()
@@ -105,24 +105,29 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private func syncWorkers() {
     guard let content else { return }
     let live = Dictionary(uniqueKeysWithValues: content.displays.map { ($0.displayID, $0) })
-    for (id, w) in workers where live[id] == nil || live[id]!.frame != w.frame || w.spec != settings.grid {
+    for (id, w) in workers where live[id] == nil || live[id]!.frame != w.frame || w.spec != spec(for: live[id]!) {
       w.reset(keepCache: false)
       workers.removeValue(forKey: id)
     }
     for (id, d) in live where workers[id] == nil {
-      let w = DisplayWorker(displayID: id, frame: d.frame, spec: settings.grid)
-      w.onJudged = { [weak self] r, cells in self?.judged(r, cells: cells, display: id) }
+      let w = DisplayWorker(displayID: id, frame: d.frame, spec: spec(for: d))
+      Log.write("display \(id): \(Int(d.frame.width))x\(Int(d.frame.height)) pt, grid \(w.spec.description)")
+      w.onJudged = { [weak self] r, cells, hidden in self?.judged(r, cells: cells, hidden: hidden, display: id) }
       workers[id] = w
     }
   }
 
-  private func judged(_ r: JudgeResult, cells: Int, display: CGDirectDisplayID) {
+  private func spec(for display: SCDisplay) -> GridSpec {
+    settings.grid ?? .fitting(width: display.frame.width, height: display.frame.height)
+  }
+
+  private func judged(_ r: JudgeResult, cells: Int, hidden hiddenCells: [String], display: CGDirectDisplayID) {
     let hidden = r.verdicts.values.filter(\.hide)
     let reasons = Set(hidden.flatMap(\.reasons)).sorted()
     lastPass = String(format: "Last pass: %d cells, %d requests, %.2f s%@", cells, r.requests, r.seconds,
                       hidden.isEmpty ? "" : " · \(hidden.count) hidden")
-    Log.write(String(format: "display %u %@: %d cells, %d requests, %.2f s, %d hidden %@%@", display, settings.mode.rawValue,
-                     cells, r.requests, r.seconds, hidden.count, reasons.description,
+    Log.write(String(format: "display %u %@: %d cells, %d requests, %.2f s, %d hidden %@ %@%@", display, settings.mode.rawValue,
+                     cells, r.requests, r.seconds, hidden.count, hiddenCells.joined(separator: ","), reasons.description,
                      r.errors.isEmpty ? "" : " errors: \(r.errors.prefix(3).joined(separator: " | "))"))
     if !r.errors.isEmpty, r.verdicts.isEmpty { setStatus("Model error: \(r.errors[0].prefix(120))") }
   }
@@ -140,7 +145,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     settings.save()
     for w in workers.values { w.reset(keepCache: keepCache) }
     syncWorkers()
-    Log.write("settings: mode \(settings.mode.rawValue), grid \(settings.grid.cols)x\(settings.grid.rows), threshold \(settings.threshold), bubbles \(settings.bubbles.map(\.label))")
+    Log.write("settings: mode \(settings.mode.rawValue), grid \(settings.grid?.description ?? "auto"), threshold \(settings.threshold), bubbles \(settings.bubbles.map(\.label))")
   }
 
   // MARK: menu
@@ -182,7 +187,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     item(finding, "Tiles: each cell with context, one request per cell") { c in c.settings.mode = .tiles; c.changed() }.state = settings.mode == .tiles ? .on : .off
     item(finding, "Grid: whole screen, one question per cell") { c in c.settings.mode = .grid; c.changed() }.state = settings.mode == .grid ? .on : .off
     finding.addItem(.separator())
-    for g in [GridSpec(cols: 6, rows: 4), GridSpec(cols: 8, rows: 5), GridSpec(cols: 12, rows: 8)] {
+    item(finding, "Cells sized to each screen (about 220 pt)") { c in c.settings.grid = nil; c.changed() }.state = settings.grid == nil ? .on : .off
+    for g in [GridSpec(cols: 6, rows: 4), GridSpec(cols: 8, rows: 5), GridSpec(cols: 12, rows: 8), GridSpec(cols: 16, rows: 9)] {
       item(finding, "\(g.cols) × \(g.rows) cells") { c in c.settings.grid = g; c.changed() }.state = settings.grid == g ? .on : .off
     }
     finding.addItem(.separator())

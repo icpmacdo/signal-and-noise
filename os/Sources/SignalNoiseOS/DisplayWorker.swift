@@ -16,7 +16,7 @@ final class DisplayWorker {
   private var refined: Set<CellBlock> = []
   private var lastImage: CGImage?
   private var generation = 0
-  var onJudged: ((JudgeResult, Int) -> Void)?
+  var onJudged: ((JudgeResult, Int, [String]) -> Void)?
   /// Set for tighter shapes; `bubbles` maps a mask's reasons back to SAM noun phrases.
   var sam: SAMClient?
   var bubbles: [Bubble] = []
@@ -41,7 +41,27 @@ final class DisplayWorker {
       guard gen == generation else { return } // paused or settings changed meanwhile
       judging = false
       if tracker.record(result.verdicts, judgedHashes: step.judgedHashes) { render() }
-      onJudged?(result, step.toJudge.count)
+      let hiddenCells = result.verdicts.filter(\.value.hide).keys.sorted().map { spec.label($0) }
+      onJudged?(result, step.toJudge.count, hiddenCells)
+      dump(image, result)
+    }
+  }
+
+  /// The last pass on this display, for debugging: the frame as captured and every answer, in
+  /// ~/Library/Logs/SignalNoiseOS/display-<id>.{jpg,json}. Overwritten each pass.
+  private func dump(_ image: CGImage, _ result: JudgeResult) {
+    let dir = Log.url.deletingPathExtension()
+    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    if let url = Imaging.jpegDataURL(image, quality: 0.6), let data = Data(base64Encoded: String(url.dropFirst("data:image/jpeg;base64,".count))) {
+      try? data.write(to: dir.appendingPathComponent("display-\(displayID).jpg"))
+    }
+    let cells = Dictionary(uniqueKeysWithValues: result.verdicts.map { (spec.label($0.key), ["hide": $0.value.hide, "scores": $0.value.scores] as [String: Any]) })
+    let json: [String: Any] = ["at": ISO8601DateFormatter().string(from: Date()), "grid": "\(spec.cols)x\(spec.rows)",
+                               "frame": [frame.minX, frame.minY, frame.width, frame.height], "image": [image.width, image.height],
+                               "seconds": result.seconds, "errors": result.errors, "cells": cells,
+                               "masked": tracker.masked.keys.sorted().map { spec.label($0) }]
+    if let data = try? JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys]) {
+      try? data.write(to: dir.appendingPathComponent("display-\(displayID).json"))
     }
   }
 

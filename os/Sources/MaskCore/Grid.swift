@@ -17,6 +17,14 @@ public struct GridSpec: Sendable, Equatable, Codable {
     self.init(cols: parts[0], rows: parts[1])
   }
 
+  /// A grid whose cells are about `cell` points across on any screen size. (Not the default:
+  /// finer cells gave the model less context and did worse on real pages.)
+  public static func fitting(width: CGFloat, height: CGFloat, cell: CGFloat = 220) -> GridSpec {
+    GridSpec(cols: max(2, Int((width / cell).rounded())), rows: max(2, Int((height / cell).rounded())))
+  }
+
+  public var description: String { "\(cols)x\(rows)" }
+
   public func col(_ index: Int) -> Int { index % cols }
   public func row(_ index: Int) -> Int { index / cols }
 
