@@ -3,3 +3,4 @@ node_modules/
 .e2e-profile/
 shots/
 .DS_Store
+eval/data/
