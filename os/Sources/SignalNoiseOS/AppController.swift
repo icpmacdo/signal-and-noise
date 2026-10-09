@@ -51,7 +51,6 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     if !settings.enabled { return "Off" }
     if key.isEmpty && decisionsURL == nil { return "Needs an OpenAI or OpenRouter key" }
     if settings.bubbles.isEmpty { return "Pick something to hide" }
-    if !CGPreflightScreenCaptureAccess() { return "Needs Screen Recording permission (System Settings › Privacy & Security)" }
     if IsSecureEventInputEnabled() { return "Paused: password entry" }
     if let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier, settings.neverApps.contains(front) {
       return "Paused: \(NSWorkspace.shared.frontmostApplication?.localizedName ?? front) is in front"
@@ -94,7 +93,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       let masked = workers.values.reduce(0) { $0 + $1.tracker.masked.count }
       setStatus(masked > 0 ? "Watching · \(masked) cell\(masked == 1 ? "" : "s") hidden" : "Watching")
     } catch {
-      setStatus("Capture failed: \(error.localizedDescription)")
+      // Permission is judged by whether capture works: CGPreflightScreenCaptureAccess can report
+      // false for a granted app on recent macOS.
+      let declined = (error as NSError).domain == SCStreamErrorDomain && (error as NSError).code == SCStreamError.userDeclined.rawValue
+      setStatus(declined ? "Needs Screen Recording permission (System Settings › Privacy & Security › Screen & System Audio Recording)"
+                         : "Capture failed: \(error.localizedDescription)")
       content = nil
     }
   }
