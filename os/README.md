@@ -67,6 +67,22 @@ cells, requests, seconds, what was hidden and any errors.
   grid mask stays. Decisions still decides *whether* to hide; SAM only decides the shape. It runs
   once per new masked block, never per frame. Text-only bubbles (rage bait, crypto) have no noun
   phrase and keep grid masks.
+- **From the Vision Jev box thread (2026-10-16), off by default** (menu → Finding regions). Built
+  and tested against stubs; not yet run against real pages, so not yet worth turning on blind:
+  - **Shapes from Jev boxes** (OpenRouter key): TypeSafe's Jev 1.14 answers "where is the ad?"
+    with one box. Each new block is searched in a loop instead of the zoomed look: crop it at full
+    resolution, ask "is there an ad?" (noul) and "where?" (box) in one request, check the box, paint
+    it out and ask again until the answer is no. A box that fails its check splits the crop in half
+    and each half is searched (two levels at most, 12 requests per block at most). Uses
+    `typesafe/jev-1.14` on OpenRouter's Decisions endpoint, the same key and route as the coarse
+    pass; images and Box are a TypeSafe preview.
+  - **Check each mask**: before a shape shows, a crop around it with the shape outlined in red is
+    asked "is what's inside mostly an ad?" two ways in one request (a yes/no and a choice), and the
+    shape is dropped only if both say no. In the thread's beetle tests checking threw out bad boxes
+    but also one real one, hence the two wordings. A failed check keeps the shape.
+  - **Ask again with found ads painted out**: once per pass, every flagged or masked cell is
+    painted with the colour around it and the cells that came back clean are asked again. This
+    goes after what's left in the tuning below: ads the coarse pass never flagged.
 - **Masks**: adjacent masked cells merge into rectangles. Each one is a borderless panel above
   every app with a system blur and a label ("Hidden · Ads"). Only the masks take the mouse.
   Hovering for 0.3 s peeks through; a click reveals the mask until that content changes.
@@ -122,6 +138,8 @@ swift run snos-eval ~/Desktop/shots                         # both modes, Ads + 
 swift run snos-eval ~/Desktop/shots --mode tiles --grid 12x8 --bubbles ads,violence --custom "spiders"
 swift run snos-eval ~/Desktop/shots --mode grid --threshold 0.5      # zoomed second look (default)
 swift run snos-eval ~/Desktop/shots --mode grid --refine sam         # SAM shapes instead (needs FAL_KEY)
+swift run snos-eval ~/Desktop/shots --mode grid --reask --verify     # ask again painted out; check each shape
+swift run snos-eval ~/Desktop/shots --mode grid --refine box --verify   # Jev box shapes (OpenRouter key)
 ```
 
 This runs the app's judging over a folder of screenshots and writes `report.html` and
@@ -129,7 +147,7 @@ This runs the app's judging over a folder of screenshots and writes `report.html
 screenshot per mode with the cells that would be masked; hover a cell for its scores. It also
 gives the median seconds per screen. Refined shapes are drawn as blue boxes. With a `labels.json` in
 the folder (`{"shot.png": [[x, y, w, h], …]}` in image pixels, `[]` for a page with no ads) it
-scores recall and precision for coarse cells and refined shapes, and draws the labels in green. Use it to choose between tiles and grid, the grid size and
+scores recall and precision for coarse cells and refined shapes, plus how many labelled ads are found (at least half their area masked), and draws the labels in green. Cells found only on the second look are dashed; shapes the check dropped are grey and hatched. Use it to choose between tiles and grid, the grid size and
 the strictness before trusting the live overlay. `SNOS_DECISIONS_URL` points both the app and the
 eval at a stub server instead of OpenAI; `SNOS_SAM_URL` does the same for SAM.
 
@@ -138,7 +156,8 @@ eval at a stub server instead of OpenAI; `SNOS_SAM_URL` does the same for SAM.
 ```sh
 swift test      # MaskCore: request shape, answer parsing, grid and merging, hashing, image prep,
                 # the tracker (drop on change, cache, late answers, reveal), both judge modes
-                # against a stub, SAM box parsing and clipping
+                # against a stub, SAM box parsing and clipping, box answers, painting out, the
+                # check, asking again, the box search (found, rejected and split, budget)
 ```
 
 `Sources/MaskCore` is the pure, tested part. `Sources/SignalNoiseOS` is the app (AppKit,
@@ -156,3 +175,6 @@ ScreenCaptureKit). `Sources/snos-eval` is the eval command.
 - SAM shapes follow the grid's movement rules: they drop when the cells under them change, so a
   shape that spills past its block can briefly stay over content that scrolled away.
 - Decisions has been run for real (via OpenRouter); SAM has only been run against a stub.
+- Jev boxes, checking and asking again have only been run against stubs. The direct TypeSafe API
+  (`api.typesafe.ai/v1/systemone`, base64 `assets` and a `TypeSafe-Danger-Zone-Images` header) isn't
+  wired up; boxes go through OpenRouter only.
