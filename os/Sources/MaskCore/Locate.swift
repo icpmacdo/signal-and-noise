@@ -9,7 +9,11 @@
 //  2. Check the box (Verify: crop it, outline it, "is this an ad?"). Kept: paint it out and ask the
 //     same region again for the next one. Rejected: cut the region in half along its long side and
 //     search each half, a few levels down at most.
-//  3. Stop at `maxBoxes` boxes or `maxRequests` requests per block.
+//  3. Crowded: the noul still says yes but the box lands on one already found (or inside a painted
+//     patch). One box per question can't get at the rest, so the region is halved the same way.
+//     Without this the search stopped after a box or two on a page of meme thumbnails, where the
+//     zoomed look found 3 times as many (eval-out/sets/memes, 2026-10-18).
+//  4. Stop at `maxBoxes` boxes or `maxRequests` requests per block.
 //
 // The coarse grid still decides *whether* a block is hidden; this decides its shape. Nothing found
 // means nothing is masked; every request failing means the caller keeps the block.
@@ -43,13 +47,17 @@ public enum Locate {
   /// takes every box the presence question vouches for.
   public static func block(_ block: CellBlock, image: CGImage, spec: GridSpec, matched: [Bubble], client: DecisionsClient,
                            checkClient: DecisionsClient?, margin: CGFloat = 0.5, presentThreshold: Double = 0.5,
-                           checkThreshold: Double = 0.5, maxBoxes: Int = 4, maxDepth: Int = 2, maxRequests: Int = 12) async -> Outcome {
+                           checkThreshold: Double = 0.5, maxBoxes: Int = 16, maxDepth: Int = 3, maxRequests: Int = 24,
+                           minRegion: CGFloat = 60) async -> Outcome {
     var out = Outcome()
     guard !matched.isEmpty else { return out }
     let start = Date()
     let area = FineRefine.area(block, spec: spec, width: image.width, height: image.height, margin: margin)
     let qs = questions(matched)
     var regions: [(CGRect, Int)] = [(area, 0)]
+    func split(_ region: CGRect, _ depth: Int) {
+      if depth < maxDepth, min(region.width, region.height) >= 2 * minRegion { regions += halves(region).map { ($0, depth + 1) } }
+    }
     search: while let (region, depth) = regions.popLast() {
       while out.rects.count < maxBoxes {
         guard out.requests < maxRequests else { break search }
@@ -69,7 +77,12 @@ public enum Locate {
         let fw = CGFloat(fitted.image.width) / fitted.scale, fh = CGFloat(fitted.image.height) / fitted.scale
         let box = CGRect(x: region.minX + unit.minX * fw, y: region.minY + unit.minY * fh, width: unit.width * fw, height: unit.height * fh)
           .intersection(region).integral
-        guard box.width >= 8, box.height >= 8, !out.rects.contains(where: { iou($0, box) > 0.6 }) else { break }
+        // Still something here, but the box is one already found (or nothing usable): too crowded
+        // for one box per question, so search each half instead.
+        if box.width < 8 || box.height < 8 || out.rects.contains(where: { iou($0, box) > 0.6 || $0.insetBy(dx: -4, dy: -4).contains(box) }) {
+          split(region, depth)
+          break
+        }
         if let checkClient {
           guard out.requests < maxRequests else { break search }
           let v = await Verify.rects([box], image: image, matched: matched, client: checkClient, threshold: checkThreshold)
@@ -77,7 +90,7 @@ public enum Locate {
           out.errors += v.errors
           if v.kept.isEmpty {
             out.rejected.append(box)
-            if depth < maxDepth { regions += halves(region).map { ($0, depth + 1) } }
+            split(region, depth)
             break
           }
         }

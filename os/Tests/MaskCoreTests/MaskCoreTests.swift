@@ -601,6 +601,19 @@ final class LocateTests: XCTestCase {
     XCTAssertEqual(r.requests, StubProtocol.seen.count)
   }
 
+  func testCrowdedRegionIsHalvedWhenTheBoxRepeats() async {
+    // Jev always says "there's more" and always points at the same spot of whatever it's shown.
+    // The second ask repeats the first box, so the region is halved and each half gives its own.
+    StubProtocol.seen = []
+    StubProtocol.handler = { _ in Self.box(0.9, 0.1, 0.1, 0.3, 0.5) }
+    let r = await Locate.block(block, image: img, spec: spec, matched: [Bubbles.common[0]],
+                               client: stubClient("sk-or-test", model: Route.boxModel), checkClient: nil, maxDepth: 1, maxRequests: 24)
+    XCTAssertTrue(r.errors.isEmpty, "\(r.errors)")
+    // Whole area x 100..700: box at x 160. Halves x 100..400 and 400..700: boxes at x 130 and 430.
+    XCTAssertEqual(r.rects.map(\.minX), [160, 430, 130])
+    XCTAssertEqual(r.requests, 6)                            // 2 on the area, 2 on each half
+  }
+
   func testHalvesCutTheLongSide() {
     XCTAssertEqual(Locate.halves(CGRect(x: 0, y: 0, width: 601, height: 300)),
                    [CGRect(x: 0, y: 0, width: 300, height: 300), CGRect(x: 300, y: 0, width: 301, height: 300)])

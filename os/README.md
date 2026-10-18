@@ -81,16 +81,18 @@ list prices (luna $0.10, Jev $0.042 per million input tokens; SAM $0.005 a call)
   - **Shapes from Jev boxes** (default with an OpenRouter or TypeSafe key): TypeSafe's Jev 1.14
     answers "where is the ad?" with one box. Each new block is searched in a loop instead of the
     zoomed look: crop it plus half a cell at full resolution, ask "is there an ad?" (noul) and
-    "where?" (box) in one request, paint the box out and ask again until the answer is no (4 boxes
-    at most). With checking on, a box that fails its check splits the crop in half and each half
-    is searched (two levels at most, 12 requests per block at most). On OpenRouter this uses
+    "where?" (box) in one request, paint the box out and ask again until the answer is no. When
+    the answer is still yes but the box repeats one already found (a crowded block, like a grid
+    of meme thumbnails), the crop is cut in half and each half is searched; with checking on, so
+    is a box that fails its check. At most three levels of halving, 16 boxes and 24 requests per
+    block. On OpenRouter this uses
     `typesafe/jev-1.14` with the same key; with a TypeSafe key it's `jev-1.14.0` direct. With an
     OpenAI key there are no box questions and the zoomed look is used.
   - **Check each mask** (off): before a shape shows, a crop around it with the shape outlined in red is
     asked "is what's inside mostly an ad?" two ways in one request (a yes/no and a choice), and the
     shape is dropped only if both say no. In the thread's beetle tests checking threw out bad boxes
     but also one real one, hence the two wordings. A failed check keeps the shape.
-  - **Ask again with found ads painted out** (off): once per pass, every flagged or masked cell is
+  - **Ask again with found ads painted out** (on): once per pass, every flagged or masked cell is
     painted with the colour around it and the cells that came back clean are asked again. This
     goes after what's left in the tuning below: ads the coarse pass never flagged.
 - **Masks**: adjacent masked cells merge into rectangles. Each one is a borderless panel above
@@ -179,6 +181,25 @@ what's left is the coarse pass: grid cells reach only 17 of the 28 ads, and boxe
 they're never pointed at. Asking again with finds painted out recovers about 2 of those for a
 third more requests; it can't help a page where nothing at all was flagged (CBS News's sticky
 footer ads are missed in every run).
+
+### Other bubbles, and crowded pages (2026-10-18)
+
+Small sets in `eval-out/sets/{memes,violence,spiders}/` (git-ignored, with LABELS.md), Jev
+direct, three runs each. "Found" is items with at least half their area masked. None of the 9
+lookalike pages (crab, ant, scorpion, ordinary photos and news) was masked in any run.
+
+| bubble | zoomed look: recall / precision / found | Jev boxes: recall / precision / found |
+|---|---|---|
+| Memes (11 pages, 36 images) | 83% / 65% / 31.7 | 81% / 69% / 29.7 (with halving; 76% / 76% / 17.7 before) |
+| Graphic violence (10 pages, 8 images) | 61% / 82% / 5.3 | 52% / 88% / 5.3 |
+| "spiders", custom (8 pages, 6 spiders) | 58% / 80% / 5.0 | 65% / 97% / 5.3 |
+
+Before halving, the box search stopped after a box or two on imgflip's rows of 10–14 meme
+thumbnails (4–9 of 14 found, against 13 for the zoomed look). Halving when a box repeats brings
+memes level, at 12.4 requests per screen against 6.7 for the zoomed look. On the 23-shot ads set
+with asking again it found the same 19 of 28 ads (71% recall, 67% precision) for 9.7 requests per
+screen instead of 7.4. Violence positives are Wikipedia medical photos and an engraving: news home
+pages showed fires, soldiers and protests but no injuries.
 
 ## Privacy
 
