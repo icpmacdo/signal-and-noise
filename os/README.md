@@ -162,6 +162,24 @@ for 50% more requests. Asking again found an extra ad now and then for twice the
 Box shapes spend about 0.3–0.4 s per block. Not measured: Jev boxes behind gpt-6-luna's coarse pass
 (an OpenRouter key), and the earlier WSJ/NYT set, which isn't on this Mac any more.
 
+A bigger set followed the same day: 23 screenshots, 28 ads (`eval-out/sets/ads-v2/`, git-ignored,
+with LABELS.md): 18 pages with ads including 5 scrolled about 1200 px and 2 at 3008×1692 (a 6K
+display at one pixel per point), and 5 without. Same settings, Jev direct, three runs each:
+
+| shapes | recall | precision | ads found (of 28) | requests per screen |
+|---|---|---|---|---|
+| zoomed look | 41% (40–42) | 59% (57–61) | 11.3 (11–12) | 5.2 |
+| Jev boxes | 63% (62–65) | 69% (67–73) | 17.0 (17) | 5.5 |
+| Jev boxes + check each mask | 62% (60–63) | 71% (70–73) | 16.3 (16–17) | 7.8 |
+| Jev boxes + ask again | 69% (65–75) | 72% (69–76) | 19.3 (19–20) | 7.4 |
+
+The first set flattered everything; on this one boxes still beat the zoomed look on every subset
+but the two 6K shots (a tie on 3 ads), and masked nothing on the 5 pages without ads. Most of
+what's left is the coarse pass: grid cells reach only 17 of the 28 ads, and boxes can't find what
+they're never pointed at. Asking again with finds painted out recovers about 2 of those for a
+third more requests; it can't help a page where nothing at all was flagged (CBS News's sticky
+footer ads are missed in every run).
+
 ## Privacy
 
 Whatever is on screen goes to OpenAI (or OpenRouter, or TypeSafe, by key) as JPEG crops: tiles of
