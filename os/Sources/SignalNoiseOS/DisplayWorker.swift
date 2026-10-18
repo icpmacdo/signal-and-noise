@@ -1,7 +1,8 @@
 // One display: hashes each captured frame's cells, asks the tracker what changed, sends unseen
 // content to the model, and keeps mask panels for each merged block of masked cells. With
 // tighter shapes on, a new block shows nothing until its shapes come back (a zoomed second look,
-// or SAM when a fal.ai key is set), so a coarse cell never briefly covers tabs or headlines.
+// Jev boxes, or SAM when a fal.ai key is set), so a coarse cell never briefly covers tabs or
+// headlines. With checking on, each shape is also checked before it shows.
 import AppKit
 import MaskCore
 
@@ -23,6 +24,10 @@ final class DisplayWorker {
   /// `bubbles` maps a mask's reasons back to the bubbles that matched.
   var fineClient: DecisionsClient?
   var sam: SAMClient?
+  /// Jev 1.14 on OpenRouter: shapes from box questions (takes precedence over SAM and zoom).
+  var boxClient: DecisionsClient?
+  /// Check each shape before it shows.
+  var checkClient: DecisionsClient?
   var bubbles: [Bubble] = []
 
   init(displayID: CGDirectDisplayID, frame: CGRect, spec: GridSpec) {
@@ -41,7 +46,7 @@ final class DisplayWorker {
     judging = true
     let gen = generation
     Task { @MainActor in
-      let result = await judge.judge(image, spec: spec, cells: step.toJudge)
+      let result = await judge.judge(image, spec: spec, cells: step.toJudge, masked: Set(tracker.masked.keys))
       guard gen == generation else { return } // paused or settings changed meanwhile
       judging = false
       if tracker.record(result.verdicts, judgedHashes: step.judgedHashes) { render() }
@@ -92,7 +97,7 @@ final class DisplayWorker {
       let label = labelFor(block)
       if let existing = panels[block] { existing.forEach { $0.setLabel(label) }; continue }
       if refining.contains(block) { continue }
-      if fineClient != nil || sam != nil, let image = lastImage {
+      if fineClient != nil || sam != nil || boxClient != nil || checkClient != nil, let image = lastImage {
         refining.insert(block)
         refine(block, image: image)
       } else {
@@ -114,8 +119,9 @@ final class DisplayWorker {
   }
 
   /// Find the shape of what's in a new block. Shapes found: mask those. Nothing found: the
-  /// zoomed look overrules the coarse one and nothing is masked. Every call failed: mask the
-  /// whole block, since the coarse pass did say hide.
+  /// second look overrules the coarse one and nothing is masked. Every call failed: mask the
+  /// whole block, since the coarse pass did say hide. Then, with checking on, drop the shapes the
+  /// check says aren't what matched (Jev boxes are checked inside the box search).
   private func refine(_ block: CellBlock, image: CGImage) {
     let reasons = Set(block.cells(spec).flatMap { tracker.masked[$0]?.reasons ?? [] })
     let matched = bubbles.filter { reasons.contains($0.label) }
@@ -123,27 +129,34 @@ final class DisplayWorker {
     let gen = generation
     let first = spec.label(block.cells(spec)[0])
     Task { @MainActor in
-      var rects: [CGRect] = [], errors: [String] = [], how = ""
+      var rects: [CGRect] = [], errors: [String] = [], how = "", dropped = 0
       let t0 = Date()
-      if let sam, !prompts.isEmpty {
+      let whole = spec.rect(block, width: Int(frame.width), height: Int(frame.height))
+      if let boxClient {
+        let r = await Locate.block(block, image: image, spec: spec, matched: matched, client: boxClient, checkClient: checkClient)
+        (rects, errors, how, dropped) = (r.rects, r.errors, "boxes", r.rejected.count)
+      } else if let sam, !prompts.isEmpty {
         let r = await Refine.block(block, image: image, spec: spec, prompts: prompts, client: sam)
         (rects, errors, how) = (r.rects, r.errors, "SAM")
       } else if let fineClient {
         let r = await FineRefine.block(block, image: image, spec: spec, matched: matched, client: fineClient)
         (rects, errors, how) = (r.rects, r.errors, "zoom")
       }
-      Log.write(String(format: "display %u %@ %@…: %d shapes, %.2f s%@", displayID, how, first, rects.count, Date().timeIntervalSince(t0),
-                       errors.isEmpty ? "" : " errors: \(errors.joined(separator: " | ").prefix(300))"))
+      if how.isEmpty || (rects.isEmpty && !errors.isEmpty) { rects = [whole] }
+      if let checkClient, how != "boxes", !rects.isEmpty {
+        let v = await Verify.rects(rects, image: image, matched: matched, client: checkClient)
+        rects = v.kept
+        errors += v.errors
+        dropped = v.dropped.count
+        how += how.isEmpty ? "check" : " + check"
+      }
+      Log.write(String(format: "display %u %@ %@…: %d shapes, %d dropped, %.2f s%@", displayID, how, first, rects.count, dropped,
+                       Date().timeIntervalSince(t0), errors.isEmpty ? "" : " errors: \(errors.joined(separator: " | ").prefix(300))"))
       guard gen == generation, refining.remove(block) != nil, currentBlocks().contains(block) else { return }
       let label = labelFor(block)
-      if !rects.isEmpty {
-        // Captured pixels are display points, so image rects are local screen rects.
-        panels[block] = rects.map { makePanel($0, block: block, label: label) }
-      } else if !errors.isEmpty {
-        panels[block] = [makePanel(spec.rect(block, width: Int(frame.width), height: Int(frame.height)), block: block, label: label)]
-      } else {
-        panels[block] = [] // refined away; remembered so it isn't asked again
-      }
+      // Captured pixels are display points, so image rects are local screen rects. None left:
+      // refined or checked away; remembered so it isn't asked again.
+      panels[block] = rects.map { makePanel($0, block: block, label: label) }
     }
   }
 

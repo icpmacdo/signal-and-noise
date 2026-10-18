@@ -75,13 +75,18 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       guard let content else { return }
       let excluded = content.applications.filter { $0.processID == getpid() || settings.neverApps.contains($0.bundleIdentifier) }
       let client = DecisionsClient(key: key, url: decisionsURL)
-      let judge = Judge(client: client, bubbles: settings.bubbles, threshold: settings.threshold, mode: settings.mode)
+      let judge = Judge(client: client, bubbles: settings.bubbles, threshold: settings.threshold, mode: settings.mode, reask: settings.askAgain)
+      // Jev's box questions are served on OpenRouter, so boxes need an OpenRouter key.
+      let boxes = settings.tighterShapes && settings.boxShapes && (client.route == .openrouter || decisionsURL != nil)
+      let boxClient = boxes ? DecisionsClient(key: key, url: decisionsURL, model: Route.boxModel, timeout: 15) : nil
       let useSAM = settings.tighterShapes && (!falKey.isEmpty || samURL != SAMClient.defaultURL)
       let sam = useSAM ? SAMClient(key: falKey, url: samURL) : nil
       for display in content.displays {
         guard let worker = workers[display.displayID] else { continue }
         worker.sam = sam
         worker.fineClient = settings.tighterShapes ? client : nil
+        worker.boxClient = boxClient
+        worker.checkClient = settings.checkMasks ? client : nil
         worker.bubbles = settings.bubbles
         let filter = SCContentFilter(display: display, excludingApplications: excluded, exceptingWindows: [])
         let config = SCStreamConfiguration()
@@ -127,8 +132,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let reasons = Set(hidden.flatMap(\.reasons)).sorted()
     lastPass = String(format: "Last pass: %d cells, %d requests, %.2f s%@", cells, r.requests, r.seconds,
                       hidden.isEmpty ? "" : " · \(hidden.count) hidden")
-    Log.write(String(format: "display %u %@: %d cells, %d requests, %.2f s, %d hidden %@ %@%@", display, settings.mode.rawValue,
-                     cells, r.requests, r.seconds, hidden.count, hiddenCells.joined(separator: ","), reasons.description,
+    let again = r.reasked.isEmpty ? "" : " asked again \(r.reasked.count), found \(r.foundOnReask.count)"
+    Log.write(String(format: "display %u %@: %d cells, %d requests, %.2f s, %d hidden %@ %@%@%@", display, settings.mode.rawValue,
+                     cells, r.requests, r.seconds, hidden.count, hiddenCells.joined(separator: ","), reasons.description, again,
                      r.errors.isEmpty ? "" : " errors: \(r.errors.prefix(3).joined(separator: " | "))"))
     if !r.errors.isEmpty, r.verdicts.isEmpty { setStatus("Model error: \(r.errors[0].prefix(120))") }
   }
@@ -146,7 +152,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     settings.save()
     for w in workers.values { w.reset(keepCache: keepCache) }
     syncWorkers()
-    Log.write("settings: mode \(settings.mode.rawValue), grid \(settings.grid?.description ?? "auto"), threshold \(settings.threshold), bubbles \(settings.bubbles.map(\.label))")
+    Log.write("settings: mode \(settings.mode.rawValue), grid \(settings.grid?.description ?? "auto"), threshold \(settings.threshold), bubbles \(settings.bubbles.map(\.label)), boxes \(settings.boxShapes), check \(settings.checkMasks), ask again \(settings.askAgain)")
   }
 
   // MARK: menu
@@ -196,6 +202,14 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let shapeTitle = falKey.isEmpty && samURL == SAMClient.defaultURL
       ? "Tighter shapes (a zoomed second look)" : "Tighter shapes (SAM on fal.ai, $0.005 per mask)"
     item(finding, shapeTitle) { c in c.settings.tighterShapes.toggle(); c.changed(keepCache: true) }.state = settings.tighterShapes ? .on : .off
+    finding.addItem(.separator())
+    let boxTitle = Route.forKey(key) == .openrouter || decisionsURL != nil
+      ? "Shapes from Jev boxes (Jev 1.14 preview on OpenRouter)" : "Shapes from Jev boxes (needs an OpenRouter key)"
+    item(finding, boxTitle) { c in c.settings.boxShapes.toggle(); c.changed(keepCache: true) }.state = settings.boxShapes ? .on : .off
+    item(finding, "Check each mask before it shows (one more request each)") { c in c.settings.checkMasks.toggle(); c.changed(keepCache: true) }
+      .state = settings.checkMasks ? .on : .off
+    item(finding, "Ask again with found ads painted out (one more pass)") { c in c.settings.askAgain.toggle(); c.changed(keepCache: true) }
+      .state = settings.askAgain ? .on : .off
     submenu(menu, "Finding regions", finding)
 
     menu.addItem(.separator())

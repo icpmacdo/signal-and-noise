@@ -6,10 +6,13 @@
 //   swift run snos-eval ~/Desktop/shots --mode tiles --grid 12x8 --bubbles ads,violence --custom "spiders"
 //   swift run snos-eval ~/Desktop/shots --mode tiles --sam     # also reshape masks with SAM 3 on fal.ai
 //   swift run snos-eval ~/Desktop/shots --mode grid --refine fine   # zoomed second pass (the app's default)
+//   swift run snos-eval ~/Desktop/shots --mode grid --reask --verify # ask again with finds painted out; check each shape
+//   swift run snos-eval ~/Desktop/shots --mode grid --refine box --verify   # Jev box search (OpenRouter key)
 //
 // With <folder>/labels.json ({"file.png": [[x, y, w, h], …]}, image pixels, [] for no ads) it
 // scores the masks: recall = share of labelled area masked, precision = share of masked area
-// that is labelled. Coarse cells and refined shapes are scored separately.
+// that is labelled. Coarse cells and refined shapes are scored separately. "Ads found" counts
+// labelled ads with at least half their area masked.
 //
 // Keys: OPENAI_API_KEY or ~/.config/openai/api_key (an OpenRouter sk-or- key works too); for --sam, FAL_KEY or ~/.config/fal/api_key.
 // SNOS_DECISIONS_URL / SNOS_SAM_URL point it at stubs instead.
@@ -45,8 +48,11 @@ let customs = option("--custom")
 let threshold = option("--threshold").last.flatMap(Double.init) ?? 0.6
 let outOpt = option("--out").last
 let useSAM = args.contains("--sam")
-args.removeAll { $0 == "--sam" }
-let refineMode = option("--refine").last ?? (useSAM ? "sam" : "fine") // none | fine | sam
+let reask = args.contains("--reask")
+let verify = args.contains("--verify")
+args.removeAll { ["--sam", "--reask", "--verify"].contains($0) }
+let refineMode = option("--refine").last ?? (useSAM ? "sam" : "fine") // none | fine | sam | box
+let boxModel = option("--box-model").last ?? Route.boxModel
 let sub = option("--sub").last.flatMap(Int.init) ?? 3
 let margin = option("--margin").last.flatMap(Double.init) ?? 0.5
 let fineThreshold = option("--fine-threshold").last.flatMap(Double.init) ?? 0.5
@@ -66,6 +72,8 @@ let keyFile = FileManager.default.homeDirectoryForCurrentUser.appendingPathCompo
 let key = env["OPENAI_API_KEY"] ?? (try? String(contentsOf: keyFile, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 if key.isEmpty && url == nil { fail("no key: set OPENAI_API_KEY (an OpenAI or OpenRouter key) or write it to ~/.config/openai/api_key") }
 let client = DecisionsClient(key: key, url: url, timeout: 30)
+if refineMode == "box", client.route != .openrouter, url == nil { fail("--refine box needs an OpenRouter key (sk-or-…): Jev's box questions are served there") }
+let boxClient = DecisionsClient(key: key, url: url, model: boxModel, timeout: 30)
 var sam: SAMClient?
 if useSAM {
   let samURL = env["SNOS_SAM_URL"].flatMap(URL.init(string:)) ?? SAMClient.defaultURL
@@ -94,12 +102,16 @@ struct Row: Encodable {
   let shapes: [String: [[Double]]]
   let refineSeconds: Double
   let refineRequests: Int
+  /// Cells flagged only on the second look, with the first finds painted out.
+  let foundOnReask: [String]
+  /// Shapes the check dropped.
+  let dropped: [[Double]]
 }
 
 let labelsURL = labelsPath.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) } ?? dir.appendingPathComponent("labels.json")
 let labels: [String: [[Double]]] = (try? Data(contentsOf: labelsURL)).flatMap { try? JSONDecoder().decode([String: [[Double]]].self, from: $0) } ?? [:]
 if !labels.isEmpty { print("scoring against \(labelsURL.lastPathComponent) (\(labels.count) files)") }
-/// mode -> [coarse, refined] -> (masked, truth, overlap) totals
+/// mode -> [coarse, refined] -> (masked, truth, overlap, ads found, ads) totals
 var totals: [String: [[Int]]] = [:]
 func pct(_ a: Int, _ b: Int) -> String { b == 0 ? "–" : String(format: "%.0f%%", Double(a) / Double(b) * 100) }
 
@@ -113,10 +125,11 @@ for file in files {
   guard let image = Imaging.load(file) else { print("skip \(file.lastPathComponent): unreadable"); continue }
   var columns: [String] = []
   for mode in modes {
-    let judge = Judge(client: client, bubbles: bubbles, threshold: threshold, mode: mode, gridAsk: gridAsk)
+    let judge = Judge(client: client, bubbles: bubbles, threshold: threshold, mode: mode, gridAsk: gridAsk, reask: reask)
     let r = await judge.judge(image, spec: spec, cells: Array(0..<spec.count))
     let hidden = r.verdicts.filter { $0.value.hide }
     var shapes: [String: [CGRect]] = [:]
+    var dropped: [CGRect] = []
     var refineSeconds = 0.0, refineRequests = 0
     let blocks = Merge.blocks(Set(hidden.keys), spec: spec)
     if refineMode != "none" {
@@ -128,10 +141,20 @@ for file in files {
         if refineMode == "sam", let sam {
           let res = await Refine.block(block, image: image, spec: spec, prompts: matched.compactMap(\.segment), client: sam)
           rects = res.rects; errors = res.errors; refineRequests += matched.count
+        } else if refineMode == "box" {
+          let res = await Locate.block(block, image: image, spec: spec, matched: matched, client: boxClient, checkClient: verify ? client : nil)
+          rects = res.rects; errors = res.errors; refineRequests += res.requests; dropped += res.rejected
+          if rects.isEmpty, !errors.isEmpty { rects = [spec.rect(block, width: image.width, height: image.height)] }
         } else {
           let res = await FineRefine.block(block, image: image, spec: spec, matched: matched, client: client,
                                            threshold: fineThreshold, sub: sub, margin: CGFloat(margin))
           rects = res.rects; errors = res.errors; refineRequests += res.requests
+        }
+        // As the app does: refining failed outright, so the block stands (the coarse pass said hide).
+        if refineMode == "fine", rects.isEmpty, !errors.isEmpty { rects = [spec.rect(block, width: image.width, height: image.height)] }
+        if verify, refineMode != "box", !rects.isEmpty {
+          let v = await Verify.rects(rects, image: image, matched: matched, client: client)
+          rects = v.kept; dropped += v.dropped; refineRequests += v.requests; errors += v.errors
         }
         for e in errors.prefix(1) { print("  refine error: \(e)") }
         shapes[spec.label(block.cells(spec)[0])] = rects // empty: refined away (nothing found)
@@ -141,19 +164,21 @@ for file in files {
     print(String(format: "%@ %@ via %@: %d/%d answered, %d masked, %d requests, %.2f s%@", file.lastPathComponent, mode.rawValue, client.route.rawValue,
                  r.verdicts.count, spec.count, hidden.count, r.requests, r.seconds, r.errors.isEmpty ? "" : ", \(r.errors.count) errors"))
     for e in r.errors.prefix(2) { print("  error: \(e)") }
-    if refineMode != "none" { print(String(format: "  refine (%@): %d blocks, %d requests, %.2f s", refineMode, blocks.count, refineRequests, refineSeconds)) }
+    if reask { print("  asked again: \(r.reasked.count) cells, found \(r.foundOnReask.map { spec.label($0) })") }
+    if refineMode != "none" { print(String(format: "  refine (%@%@): %d blocks, %d requests, %.2f s, %d shapes dropped", refineMode, verify ? " + check" : "", blocks.count, refineRequests, refineSeconds, dropped.count)) }
     var scoreText = ""
     if let truth = labels[file.lastPathComponent] {
       let truthRects = truth.map { CGRect(x: $0[0], y: $0[1], width: $0[2], height: $0[3]) }
       let coarse = blocks.map { spec.rect($0, width: image.width, height: image.height) }
       // A block the refine pass emptied is unmasked; with refining off the coarse cells stand.
       let refined = refineMode == "none" ? coarse : blocks.flatMap { shapes[spec.label($0.cells(spec)[0])] ?? [] }
-      var t = totals[mode.rawValue] ?? [[0, 0, 0], [0, 0, 0]]
+      var t = totals[mode.rawValue] ?? [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]
       var parts: [String] = []
       for (k, (name, rects)) in [("cells", coarse), ("refined", refined)].enumerated() {
         let c = Coverage.score(masked: rects, truth: truthRects, width: image.width, height: image.height)
-        t[k][0] += c.maskedArea; t[k][1] += c.truthArea; t[k][2] += c.overlap
-        parts.append("\(name): recall \(pct(c.overlap, c.truthArea)), precision \(pct(c.overlap, c.maskedArea))")
+        let found = Coverage.found(masked: rects, truth: truthRects)
+        t[k][0] += c.maskedArea; t[k][1] += c.truthArea; t[k][2] += c.overlap; t[k][3] += found; t[k][4] += truthRects.count
+        parts.append("\(name): recall \(pct(c.overlap, c.truthArea)), precision \(pct(c.overlap, c.maskedArea)), ads found \(found)/\(truthRects.count)")
       }
       totals[mode.rawValue] = t
       scoreText = parts.joined(separator: " · ")
@@ -162,14 +187,16 @@ for file in files {
     rows.append(Row(file: file.lastPathComponent, mode: mode.rawValue, seconds: r.seconds, requests: r.requests, errors: r.errors,
                     cells: Dictionary(uniqueKeysWithValues: r.verdicts.map { (spec.label($0.key), $0.value) }),
                     shapes: shapes.mapValues { $0.map { [$0.minX, $0.minY, $0.width, $0.height].map(Double.init) } },
-                    refineSeconds: refineSeconds, refineRequests: refineRequests))
+                    refineSeconds: refineSeconds, refineRequests: refineRequests,
+                    foundOnReask: r.foundOnReask.map { spec.label($0) },
+                    dropped: dropped.map { [$0.minX, $0.minY, $0.width, $0.height].map(Double.init) }))
     var overlay = ""
     for i in 0..<spec.count {
       let rect = spec.rect(i, width: image.width, height: image.height)
       let v = r.verdicts[i]
       let scores = bubbles.map { b in String(format: "%@ %.0f%%", b.label, (v?.scores[b.id] ?? 0) * 100) }.joined(separator: ", ")
       let tip = "\(spec.label(i)): \(v == nil ? "no answer" : scores)"
-      let cls = v == nil ? "cell none" : v!.hide ? "cell hit" : "cell"
+      let cls = v == nil ? "cell none" : v!.hide ? (r.foundOnReask.contains(i) ? "cell hit again" : "cell hit") : "cell"
       overlay += String(format: "<div class=\"%@\" title=\"%@\" style=\"left:%.3f%%;top:%.3f%%;width:%.3f%%;height:%.3f%%\">%@</div>",
                         cls, html(tip), rect.minX / CGFloat(image.width) * 100, rect.minY / CGFloat(image.height) * 100,
                         rect.width / CGFloat(image.width) * 100, rect.height / CGFloat(image.height) * 100,
@@ -178,6 +205,11 @@ for file in files {
     for t in labels[file.lastPathComponent] ?? [] {
       overlay += String(format: "<div class=\"truth\" style=\"left:%.3f%%;top:%.3f%%;width:%.3f%%;height:%.3f%%\"></div>",
                         t[0] / Double(image.width) * 100, t[1] / Double(image.height) * 100, t[2] / Double(image.width) * 100, t[3] / Double(image.height) * 100)
+    }
+    for rect in dropped {
+      overlay += String(format: "<div class=\"dropped\" title=\"dropped by the check\" style=\"left:%.3f%%;top:%.3f%%;width:%.3f%%;height:%.3f%%\"></div>",
+                        rect.minX / CGFloat(image.width) * 100, rect.minY / CGFloat(image.height) * 100,
+                        rect.width / CGFloat(image.width) * 100, rect.height / CGFloat(image.height) * 100)
     }
     for rect in shapes.values.joined() {
       overlay += String(format: "<div class=\"shape\" style=\"left:%.3f%%;top:%.3f%%;width:%.3f%%;height:%.3f%%\"></div>",
@@ -217,17 +249,19 @@ figure{margin:0}figcaption{font-size:13px;color:var(--muted);margin-bottom:6px}
 .cell.none{background:repeating-linear-gradient(45deg,transparent 0 6px,rgba(127,127,127,.25) 6px 8px)}
 .cell.hit{background:var(--hit);border:2px solid rgb(220,38,38);backdrop-filter:blur(6px)}
 .shape{position:absolute;box-sizing:border-box;border:3px solid rgb(37,99,235);background:rgba(37,99,235,.18)}
+.cell.again{border-style:dashed}
+.dropped{position:absolute;box-sizing:border-box;border:2px dotted rgb(120,120,120);background:repeating-linear-gradient(-45deg,transparent 0 6px,rgba(120,120,120,.3) 6px 8px)}
 .truth{position:absolute;box-sizing:border-box;border:3px dashed rgb(22,163,74)}
 .cell span{position:absolute;left:4px;top:4px;font:600 11px/1.2 -apple-system,sans-serif;color:#fff;background:rgb(220,38,38);padding:2px 5px;border-radius:4px}
 </style></head><body><main>
 <h1>Mask eval</h1>
-<p>Grid \(spec.cols)×\(spec.rows) · bubbles: \(html(bubbles.map(\.label).joined(separator: ", "))) · mask at \(Int(threshold * 100))% · \(files.count) screenshots. Red cells would be masked; hover any cell for its scores; striped cells got no answer.\(refineMode == "none" ? "" : " Blue boxes are the refined shapes, which replace the red cells they overlap.")</p>
+<p>Grid \(spec.cols)×\(spec.rows) · bubbles: \(html(bubbles.map(\.label).joined(separator: ", "))) · mask at \(Int(threshold * 100))% · \(files.count) screenshots. Red cells would be masked; hover any cell for its scores; striped cells got no answer.\(reask ? " Dashed red cells were found only on the second look, with the first finds painted out." : "")\(refineMode == "none" ? "" : " Blue boxes are the refined shapes (\(refineMode == "box" ? "Jev boxes" : refineMode)), which replace the red cells they overlap.")\(verify || refineMode == "box" ? " Grey hatched boxes are shapes the check dropped." : "")</p>
 <ul>\(summary)</ul>
 \(sections.joined(separator: "\n"))
 </main></body></html>
 """
 try page.write(to: out.appendingPathComponent("report.html"), atomically: true, encoding: String.Encoding.utf8)
 for (mode, t) in totals.sorted(by: { $0.key < $1.key }) {
-  print("\(mode) overall: cells recall \(pct(t[0][2], t[0][1])), precision \(pct(t[0][2], t[0][0])) · refined recall \(pct(t[1][2], t[1][1])), precision \(pct(t[1][2], t[1][0]))")
+  print("\(mode) overall: cells recall \(pct(t[0][2], t[0][1])), precision \(pct(t[0][2], t[0][0])), ads found \(t[0][3])/\(t[0][4]) · refined recall \(pct(t[1][2], t[1][1])), precision \(pct(t[1][2], t[1][0])), ads found \(t[1][3])/\(t[1][4])")
 }
 print("report: \(out.appendingPathComponent("report.html").path)")

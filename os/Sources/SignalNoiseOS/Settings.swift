@@ -18,6 +18,12 @@ struct Settings: Codable, Equatable {
   var grid: GridSpec? = GridSpec(cols: 8, rows: 5)
   /// Reshape masks with a zoomed second look (or SAM 3 on fal.ai when a fal key is set).
   var tighterShapes = true
+  /// The Vision Jev thread's ideas (2026-10-16), off until snos-eval shows they help on labelled
+  /// screens: shapes from Jev boxes (OpenRouter key; replaces the zoomed look and SAM), a check of
+  /// each mask before it shows, and asking the clean cells again with what was found painted out.
+  var boxShapes = false
+  var checkMasks = false
+  var askAgain = false
   /// Apps whose windows are never captured, and while one is in front nothing runs at all.
   var neverApps = [
     "com.1password.1password", "com.agilebits.onepassword7", "com.bitwarden.desktop",
@@ -39,6 +45,9 @@ struct Settings: Codable, Equatable {
     mode = try c.decodeIfPresent(Mode.self, forKey: .mode) ?? d.mode
     grid = c.contains(.grid) ? try c.decodeIfPresent(GridSpec.self, forKey: .grid) : d.grid
     tighterShapes = try c.decodeIfPresent(Bool.self, forKey: .tighterShapes) ?? d.tighterShapes
+    boxShapes = try c.decodeIfPresent(Bool.self, forKey: .boxShapes) ?? d.boxShapes
+    checkMasks = try c.decodeIfPresent(Bool.self, forKey: .checkMasks) ?? d.checkMasks
+    askAgain = try c.decodeIfPresent(Bool.self, forKey: .askAgain) ?? d.askAgain
     neverApps = try c.decodeIfPresent([String].self, forKey: .neverApps) ?? d.neverApps
   }
 
