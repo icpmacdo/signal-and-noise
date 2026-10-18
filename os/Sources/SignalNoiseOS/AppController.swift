@@ -25,6 +25,18 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private var status = "Starting"
   private var lastPass = ""
   private var paused = true
+  /// Requests, tokens and cost of every model call; today's totals survive restarts.
+  private let meter = UsageMeter()
+  private var savedVersion = 0
+  private var widget: UsageWidget?
+  private var usageTimer: Timer?
+  /// Quitting closes the widget too; only a close by hand should stop it reopening at launch.
+  private var quitting = false
+
+  func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+    quitting = true
+    return .terminateNow
+  }
 
   /// For testing against a stub: SNOS_DECISIONS_URL=http://127.0.0.1:8787/v1/decisions
   private let decisionsURL = ProcessInfo.processInfo.environment["SNOS_DECISIONS_URL"].flatMap(URL.init(string:))
@@ -39,7 +51,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     menu.delegate = self
     statusItem.menu = menu
     if !CGPreflightScreenCaptureAccess() { CGRequestScreenCaptureAccess() }
-    Log.write("started; mode \(settings.mode.rawValue), grid \(settings.grid?.description ?? "auto"), bubbles \(settings.bubbles.map(\.label))")
+    restoreUsage()
+    usageTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+      MainActor.assumeIsolated { self?.usageTick() }
+    }
+    if UserDefaults.standard.bool(forKey: "usageWidgetOpen") { toggleWidget(true) }
+    Log.write("started; route \(route.rawValue) (\(route.model)), mode \(settings.mode.rawValue), grid \(settings.grid?.description ?? "auto"), bubbles \(settings.bubbles.map(\.label)), shapes \(shapesName)")
     loop = Task { @MainActor in
       while !Task.isCancelled {
         await tick()
@@ -77,13 +94,13 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       }
       guard let content else { return }
       let excluded = content.applications.filter { $0.processID == getpid() || settings.neverApps.contains($0.bundleIdentifier) }
-      let client = DecisionsClient(key: route == .typesafe ? tsKey : key, url: decisionsURL, route: route)
+      let client = DecisionsClient(key: route == .typesafe ? tsKey : key, url: decisionsURL, route: route, meter: meter)
       let judge = Judge(client: client, bubbles: settings.bubbles, threshold: settings.threshold, mode: settings.mode, reask: settings.askAgain)
       // Box questions are Jev's (OpenRouter or TypeSafe direct); OpenAI has none.
       let boxes = settings.tighterShapes && settings.boxShapes && (route.answersBoxes || decisionsURL != nil)
-      let boxClient = boxes ? DecisionsClient(key: client.key, url: decisionsURL, route: route, model: route.boxModel, timeout: 15) : nil
+      let boxClient = boxes ? DecisionsClient(key: client.key, url: decisionsURL, route: route, model: route.boxModel, timeout: 15, meter: meter) : nil
       let useSAM = settings.tighterShapes && (!falKey.isEmpty || samURL != SAMClient.defaultURL)
-      let sam = useSAM ? SAMClient(key: falKey, url: samURL) : nil
+      let sam = useSAM ? SAMClient(key: falKey, url: samURL, meter: meter) : nil
       for display in content.displays {
         guard let worker = workers[display.displayID] else { continue }
         worker.sam = sam
@@ -151,11 +168,51 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     statusItem.button?.appearsDisabled = paused
   }
 
+  // MARK: usage
+
+  private func restoreUsage() {
+    let d = UserDefaults.standard
+    if let day = d.string(forKey: "usageDay"), let data = d.data(forKey: "usageToday"),
+       let today = try? JSONDecoder().decode([String: UsageMeter.Line].self, from: data) {
+      meter.restore(day: day, today: today)
+    }
+  }
+
+  /// Refresh the widget every second; save today's totals when they've changed.
+  private func usageTick() {
+    let snap = meter.snapshot()
+    if let widget, widget.isVisible { widget.update(snap) }
+    if meter.version != savedVersion, let data = try? JSONEncoder().encode(snap.today) {
+      savedVersion = meter.version
+      UserDefaults.standard.set(snap.day, forKey: "usageDay")
+      UserDefaults.standard.set(data, forKey: "usageToday")
+    }
+  }
+
+  private func toggleWidget(_ show: Bool) {
+    UserDefaults.standard.set(show, forKey: "usageWidgetOpen")
+    guard show else { widget?.close(); return }
+    if widget == nil {
+      let w = UsageWidget()
+      w.onClose = { [weak self] in if self?.quitting == false { UserDefaults.standard.set(false, forKey: "usageWidgetOpen") } }
+      widget = w
+    }
+    widget?.update(meter.snapshot())
+    widget?.show()
+  }
+
+  /// How new blocks get their shapes, for the log.
+  private var shapesName: String {
+    guard settings.tighterShapes else { return "cells" }
+    if settings.boxShapes && (route.answersBoxes || decisionsURL != nil) { return "Jev boxes (\(route.boxModel))" }
+    return falKey.isEmpty && samURL == SAMClient.defaultURL ? "zoomed look" : "SAM"
+  }
+
   private func changed(keepCache: Bool = false) {
     settings.save()
     for w in workers.values { w.reset(keepCache: keepCache) }
     syncWorkers()
-    Log.write("settings: mode \(settings.mode.rawValue), grid \(settings.grid?.description ?? "auto"), threshold \(settings.threshold), bubbles \(settings.bubbles.map(\.label)), boxes \(settings.boxShapes), check \(settings.checkMasks), ask again \(settings.askAgain)")
+    Log.write("settings: route \(route.rawValue), shapes \(shapesName), mode \(settings.mode.rawValue), grid \(settings.grid?.description ?? "auto"), threshold \(settings.threshold), bubbles \(settings.bubbles.map(\.label)), boxes \(settings.boxShapes), check \(settings.checkMasks), ask again \(settings.askAgain)")
   }
 
   // MARK: menu
@@ -165,6 +222,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     menu.addItem(withTitle: "Signal & Noise for macOS (experimental)", action: nil, keyEquivalent: "").isEnabled = false
     menu.addItem(withTitle: status, action: nil, keyEquivalent: "").isEnabled = false
     if !lastPass.isEmpty { menu.addItem(withTitle: lastPass, action: nil, keyEquivalent: "").isEnabled = false }
+    let today = meter.snapshot().todayTotal
+    menu.addItem(withTitle: "Today: \(UsageWidget.count(today.requests)) requests · \(UsageWidget.money(today.cost, estimated: today.estimated > 0))",
+                 action: nil, keyEquivalent: "").isEnabled = false
+    let open = widget?.isVisible == true
+    item(menu, open ? "Hide usage widget" : "Show usage widget") { $0.toggleWidget(!open) }
     menu.addItem(.separator())
     item(menu, settings.enabled ? "Turn off" : "Turn on") { $0.settings.enabled.toggle(); $0.changed(keepCache: true) }
 

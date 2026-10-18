@@ -661,3 +661,74 @@ final class TypeSafeRouteTests: XCTestCase {
     XCTAssertGreaterThanOrEqual(min(img.width, img.height), 280)  // a 100x60 tile was refitted
   }
 }
+
+final class UsageTests: XCTestCase {
+  final class Clock: @unchecked Sendable { var t = Date(timeIntervalSince1970: 1_800_000_000) }
+
+  func testEstimatesFromListPricesAndPrefersReportedCost() {
+    let clock = Clock()
+    let m = UsageMeter(now: { clock.t })
+    m.record(model: "gpt-6-luna", inputTokens: 2_000_000)               // $0.20 at $0.10/M
+    m.record(model: "typesafe/jev-1.14", inputTokens: 1_000, reportedCost: 0.5)
+    m.record(model: "jev-1.14.0", inputTokens: 1_000_000)               // $0.042
+    m.record(model: "mystery", inputTokens: 10)
+    m.record(model: "fal-ai/sam-3/image")                               // $0.005 a call
+    m.record(model: "gpt-6-luna", failed: true)
+    let s = m.snapshot()
+    XCTAssertEqual(s.session["gpt-6-luna"]?.cost ?? 0, 0.20, accuracy: 1e-12)
+    XCTAssertEqual(s.session["gpt-6-luna"]?.requests, 2)
+    XCTAssertEqual(s.session["gpt-6-luna"]?.failures, 1)
+    XCTAssertEqual(s.session["typesafe/jev-1.14"]?.cost, 0.5)
+    XCTAssertEqual(s.session["typesafe/jev-1.14"]?.estimated, 0)
+    XCTAssertEqual(s.session["jev-1.14.0"]?.cost ?? 0, 0.042, accuracy: 1e-12)
+    XCTAssertEqual(s.session["mystery"]?.unpriced, 1)
+    XCTAssertEqual(s.session["fal-ai/sam-3/image"]?.cost ?? 0, 0.005, accuracy: 1e-12)
+    XCTAssertEqual(s.sessionTotal.requests, 6)
+    XCTAssertEqual(s.sessionTotal.cost, 0.20 + 0.5 + 0.042 + 0.005, accuracy: 1e-9)
+    XCTAssertEqual(s.lastMinute.requests, 6)
+    XCTAssertEqual(s.todayTotal.requests, 6)
+  }
+
+  func testLastMinuteSlidesAndTodayRollsOverButSessionStays() {
+    let clock = Clock()
+    let m = UsageMeter(now: { clock.t })
+    m.record(model: "gpt-6-luna", inputTokens: 1000)
+    clock.t += 90
+    XCTAssertEqual(m.snapshot().lastMinute.requests, 0)
+    XCTAssertEqual(m.snapshot().sessionTotal.requests, 1)
+    clock.t += 86_400                                                  // tomorrow
+    XCTAssertEqual(m.snapshot().todayTotal.requests, 0)
+    m.record(model: "gpt-6-luna", inputTokens: 1000)
+    XCTAssertEqual(m.snapshot().todayTotal.requests, 1)
+    XCTAssertEqual(m.snapshot().sessionTotal.requests, 2)
+  }
+
+  func testRestoreOnlyKeepsTheSameDay() {
+    let clock = Clock()
+    let m = UsageMeter(now: { clock.t })
+    var line = UsageMeter.Line(); line.requests = 7; line.cost = 0.01
+    m.restore(day: "1999-01-01", today: ["gpt-6-luna": line])
+    XCTAssertEqual(m.snapshot().todayTotal.requests, 0)
+    m.restore(day: UsageMeter.dayKey(clock.t), today: ["gpt-6-luna": line])
+    m.record(model: "gpt-6-luna", inputTokens: 0)
+    XCTAssertEqual(m.snapshot().todayTotal.requests, 8)
+    XCTAssertEqual(m.snapshot().sessionTotal.requests, 1)               // restored totals are today's, not this session's
+  }
+
+  func testClientsReportEveryRequest() async {
+    StubProtocol.handler = { _ in ["answers": ["ads": ["type": "noul", "noul": 0.8]], "usage": ["input_tokens": 273, "cost": 0.0001]] }
+    let meter = UsageMeter()
+    let config = URLSessionConfiguration.ephemeral
+    config.protocolClasses = [StubProtocol.self]
+    let client = DecisionsClient(key: "sk-or-test", session: URLSession(configuration: config), meter: meter)
+    _ = try? await client.ask(text: "hi", imageDataURL: nil, questions: [.predicate(name: "ads", instructions: "ad?")])
+    StubProtocol.handler = { _ in ["answers": [:], "usage": ["prompt_tokens": 50]] }
+    let jev = DecisionsClient(key: "ts", route: .typesafe, session: URLSession(configuration: config), meter: meter)
+    _ = try? await jev.ask(text: "hi", imageDataURL: nil, questions: [.predicate(name: "ads", instructions: "ad?")])
+    let s = meter.snapshot()
+    XCTAssertEqual(s.session["openai/gpt-6-luna-decisions"]?.inputTokens, 273)
+    XCTAssertEqual(s.session["openai/gpt-6-luna-decisions"]?.cost, 0.0001)
+    XCTAssertEqual(s.session["jev-1.14.0"]?.inputTokens, 50)
+    XCTAssertEqual(s.session["jev-1.14.0"]?.estimated, 1)
+  }
+}

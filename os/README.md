@@ -33,7 +33,14 @@ open "build/Signal & Noise OS.app"
    `~/.config/fal/api_key` also work. Turn it off under Finding regions.
 
 Every judging pass is logged to `~/Library/Logs/SignalNoiseOS.log` (menu → Open log), with
-cells, requests, seconds, what was hidden and any errors.
+cells, requests, seconds, what was hidden and any errors; the route and model are logged at
+start, and each refined block's shapes with their positions.
+
+Menu → **Show usage widget** opens a small floating panel with what the models cost while the app
+runs: requests, tokens and dollars per model for this session, the last minute (with the hourly
+rate it implies) and today (kept across restarts). The menu also shows today's total. Costs are
+what the response says where it says (OpenRouter returns each call's cost); otherwise tokens times
+list prices (luna $0.10, Jev $0.042 per million input tokens; SAM $0.005 a call), marked ≈.
 
 ## How it works
 

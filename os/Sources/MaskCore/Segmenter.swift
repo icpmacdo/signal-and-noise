@@ -17,8 +17,11 @@ public final class SAMClient: @unchecked Sendable {
   public let url: URL
   let session: URLSession
   let timeout: TimeInterval
+  public let meter: UsageMeter?
 
-  public init(key: String, url: URL = SAMClient.defaultURL, session: URLSession = .shared, timeout: TimeInterval = 20) {
+  public init(key: String, url: URL = SAMClient.defaultURL, session: URLSession = .shared, timeout: TimeInterval = 20,
+              meter: UsageMeter? = nil) {
+    self.meter = meter
     self.key = key
     self.url = url
     self.session = session
@@ -61,8 +64,13 @@ public final class SAMClient: @unchecked Sendable {
     req.setValue("application/json", forHTTPHeaderField: "Content-Type")
     if !key.isEmpty { req.setValue("Key \(key)", forHTTPHeaderField: "Authorization") }
     req.httpBody = try JSONSerialization.data(withJSONObject: Self.body(imageDataURL: dataURL, prompt: prompt))
-    let (data, resp) = try await session.data(for: req)
+    let data: Data, resp: URLResponse
+    do { (data, resp) = try await session.data(for: req) } catch {
+      meter?.record(model: "fal-ai/sam-3/image", failed: true)
+      throw error
+    }
     let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+    meter?.record(model: "fal-ai/sam-3/image", failed: !(200..<300).contains(status))
     guard (200..<300).contains(status) else {
       throw DecisionsError(description: "SAM HTTP \(status): \(String(decoding: data.prefix(300), as: UTF8.self))")
     }

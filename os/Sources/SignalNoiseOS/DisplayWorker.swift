@@ -150,8 +150,9 @@ final class DisplayWorker {
         dropped = v.dropped.count
         how += how.isEmpty ? "check" : " + check"
       }
-      Log.write(String(format: "display %u %@ %@…: %d shapes, %d dropped, %.2f s%@", displayID, how, first, rects.count, dropped,
-                       Date().timeIntervalSince(t0), errors.isEmpty ? "" : " errors: \(errors.joined(separator: " | ").prefix(300))"))
+      let where_ = rects.map { "[\(Int($0.minX)),\(Int($0.minY)),\(Int($0.width)),\(Int($0.height))]" }.joined(separator: " ")
+      Log.write(String(format: "display %u %@ %@…: %d shapes, %d dropped, %.2f s %@%@", displayID, how, first, rects.count, dropped,
+                       Date().timeIntervalSince(t0), where_, errors.isEmpty ? "" : " errors: \(errors.joined(separator: " | ").prefix(300))"))
       guard gen == generation, refining.remove(block) != nil, currentBlocks().contains(block) else { return }
       let label = labelFor(block)
       // Captured pixels are display points, so image rects are local screen rects. None left:

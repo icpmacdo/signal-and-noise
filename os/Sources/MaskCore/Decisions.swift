@@ -242,11 +242,14 @@ public final class DecisionsClient: @unchecked Sendable {
   public let route: Route
   let session: URLSession
   let timeout: TimeInterval
+  /// Told about every request: tokens, cost, failures.
+  public let meter: UsageMeter?
 
   /// The route (and with it the default URL and model name) follows the key unless given. `model`
   /// overrides the route's model, e.g. typesafe/jev-1.14 on OpenRouter for box questions.
   public init(key: String, url: URL? = nil, route: Route? = nil, model: String? = nil, session: URLSession = .shared,
-              timeout: TimeInterval = 10) {
+              timeout: TimeInterval = 10, meter: UsageMeter? = nil) {
+    self.meter = meter
     let route = route ?? Route.forKey(key)
     self.key = key
     self.route = route
@@ -267,8 +270,15 @@ public final class DecisionsClient: @unchecked Sendable {
       image = Decisions.fittedForJev(url)
     }
     req.httpBody = try JSONSerialization.data(withJSONObject: Decisions.body(text: text, imageDataURL: image, questions: questions, model: model, route: route))
-    let (data, resp) = try await session.data(for: req)
+    let data: Data, resp: URLResponse
+    do { (data, resp) = try await session.data(for: req) } catch {
+      meter?.record(model: model, failed: true)
+      throw error
+    }
     let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+    let usage = UsageMeter.parse(data)
+    meter?.record(model: model, inputTokens: usage.input, outputTokens: usage.output, reportedCost: usage.cost,
+                  failed: !(200..<300).contains(status))
     guard (200..<300).contains(status) else {
       throw DecisionsError(description: "HTTP \(status): \(String(decoding: data.prefix(300), as: UTF8.self))")
     }
