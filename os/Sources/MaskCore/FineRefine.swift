@@ -87,4 +87,19 @@ public enum Coverage {
     }
     return (m, t, both)
   }
+
+  /// How many labelled ads are found: at least `share` of the ad's own area masked. Area recall
+  /// can't tell one big ad half-masked from a small ad missed outright; this can.
+  public static func found(masked: [CGRect], truth: [CGRect], share: Double = 0.5, step: Int = 4) -> Int {
+    truth.filter { t in
+      var inside = 0, total = 0
+      for y in stride(from: t.minY + CGFloat(step) / 2, to: t.maxY, by: CGFloat(step)) {
+        for x in stride(from: t.minX + CGFloat(step) / 2, to: t.maxX, by: CGFloat(step)) {
+          total += 1
+          if masked.contains(where: { $0.contains(CGPoint(x: x, y: y)) }) { inside += 1 }
+        }
+      }
+      return total > 0 && Double(inside) / Double(total) >= share
+    }.count
+  }
 }

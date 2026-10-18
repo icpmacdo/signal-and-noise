@@ -8,6 +8,12 @@
 //         it leans on the model pointing at parts of an image, which is unproven.
 //
 // A cell whose request fails gets no verdict and stays unmasked (fail open).
+//
+// Asking again (`reask`): the coarse pass misses some ads entirely, and nothing later can mask what
+// it never flagged. So once per pass, everything flagged (this pass or already masked) is painted
+// over with the colour around it and the cells that came back clean are asked about again, the
+// "mask what you found, ask for the next one" idea from the Vision Jev thread (2026-10-16). Only
+// new hides from the second look are taken; a clean answer never undoes a first-look hide.
 import CoreGraphics
 import Foundation
 
@@ -40,6 +46,9 @@ public struct JudgeResult: Sendable {
   public var errors: [String] = []
   public var requests = 0
   public var seconds: Double = 0
+  /// Cells asked about again with the found ones painted out, and those that then said hide.
+  public var reasked: [Int] = []
+  public var foundOnReask: [Int] = []
 }
 
 public struct Judge: Sendable {
@@ -52,9 +61,11 @@ public struct Judge: Sendable {
   /// Grid mode: questions per request.
   public let chunk: Int
   public let gridAsk: GridAsk
+  /// Ask the clean cells again with what was found painted out.
+  public let reask: Bool
 
   public init(client: DecisionsClient, bubbles: [Bubble], threshold: Double = 0.6, mode: Mode = .tiles,
-              maxConcurrent: Int = 12, chunk: Int = 20, gridAsk: GridAsk = .choice) {
+              maxConcurrent: Int = 12, chunk: Int = 20, gridAsk: GridAsk = .choice, reask: Bool = false) {
     self.client = client
     self.bubbles = bubbles
     self.threshold = threshold
@@ -62,8 +73,10 @@ public struct Judge: Sendable {
     self.maxConcurrent = maxConcurrent
     self.chunk = chunk
     self.gridAsk = gridAsk
+    self.reask = reask
   }
 
+  static let paintedNote = " Plain patches painted over parts of the screen hide things that were already found; ignore them."
   static let tileText = "A crop of someone's computer screen. The region outlined in red is the one being checked; everything outside the outline is only context."
 
   public func tileQuestions() -> [Question] {
@@ -96,17 +109,39 @@ public struct Judge: Sendable {
     return Verdict(hide: !hits.isEmpty, reasons: hits.map(\.label), scores: scores)
   }
 
-  /// Judge `cells` of `image`. Only cells that got an answer appear in the result.
-  public func judge(_ image: CGImage, spec: GridSpec, cells: [Int]) async -> JudgeResult {
+  /// Judge `cells` of `image`. Only cells that got an answer appear in the result. `masked`:
+  /// cells already masked on screen, painted out along with this pass's hides when asking again.
+  public func judge(_ image: CGImage, spec: GridSpec, cells: [Int], masked: Set<Int> = []) async -> JudgeResult {
     guard !bubbles.isEmpty, !cells.isEmpty else { return JudgeResult() }
     let start = Date()
-    var result = mode == .tiles ? await judgeTiles(image, spec: spec, cells: cells) : await judgeGrid(image, spec: spec, cells: cells)
+    var result = await look(image, spec: spec, cells: cells, painted: false)
+    let hidden = Set(result.verdicts.filter(\.value.hide).keys)
+    let paint = masked.union(hidden)
+    let clean = cells.filter { result.verdicts[$0]?.hide == false }
+    if reask, !paint.isEmpty, !clean.isEmpty,
+       let painted = Imaging.paintOut(image, rects: Merge.blocks(paint, spec: spec).map { spec.rect($0, width: image.width, height: image.height) }) {
+      let again = await look(painted, spec: spec, cells: clean, painted: true)
+      result.requests += again.requests
+      result.errors += again.errors.map { "again: \($0)" }
+      result.reasked = clean
+      for (i, v) in again.verdicts where v.hide {
+        result.verdicts[i] = v
+        result.foundOnReask.append(i)
+      }
+      result.foundOnReask.sort()
+    }
     result.seconds = Date().timeIntervalSince(start)
     return result
   }
 
-  func judgeTiles(_ image: CGImage, spec: GridSpec, cells: [Int]) async -> JudgeResult {
+  func look(_ image: CGImage, spec: GridSpec, cells: [Int], painted: Bool) async -> JudgeResult {
+    mode == .tiles ? await judgeTiles(image, spec: spec, cells: cells, painted: painted)
+                   : await judgeGrid(image, spec: spec, cells: cells, painted: painted)
+  }
+
+  func judgeTiles(_ image: CGImage, spec: GridSpec, cells: [Int], painted: Bool = false) async -> JudgeResult {
     let questions = tileQuestions()
+    let text = Self.tileText + (painted ? Self.paintedNote : "")
     let jobs: [(Int, String)] = cells.compactMap { i in
       let rect = spec.rect(i, width: image.width, height: image.height)
       guard let tile = Imaging.tile(image, cell: rect), let url = Imaging.jpegDataURL(tile) else { return nil }
@@ -115,7 +150,7 @@ public struct Judge: Sendable {
     var result = JudgeResult()
     result.requests = jobs.count
     await forEachLimited(jobs, limit: maxConcurrent) { job -> (Int, Result<[String: Answer], Error>) in
-      do { return (job.0, .success(try await client.ask(text: Self.tileText, imageDataURL: job.1, questions: questions))) }
+      do { return (job.0, .success(try await client.ask(text: text, imageDataURL: job.1, questions: questions))) }
       catch { return (job.0, .failure(error)) }
     } collect: { cell, outcome in
       switch outcome {
@@ -129,13 +164,13 @@ public struct Judge: Sendable {
     return result
   }
 
-  func judgeGrid(_ image: CGImage, spec: GridSpec, cells: [Int]) async -> JudgeResult {
+  func judgeGrid(_ image: CGImage, spec: GridSpec, cells: [Int], painted: Bool = false) async -> JudgeResult {
     var result = JudgeResult()
     guard let gridImage = Imaging.grid(image, spec: spec), let url = Imaging.jpegDataURL(gridImage) else {
       result.errors.append("could not draw the grid image")
       return result
     }
-    let text = gridText(spec)
+    let text = gridText(spec) + (painted ? Self.paintedNote : "")
     // Keep about `chunk` questions per request whichever way cells are asked about.
     let perCell = gridAsk == .predicate ? bubbles.count : 1
     let cellsPer = max(1, chunk / perCell)

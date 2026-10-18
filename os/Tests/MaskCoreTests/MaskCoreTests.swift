@@ -391,3 +391,227 @@ final class FineRefineTests: XCTestCase {
     XCTAssertEqual(Double(c.overlap) / Double(c.maskedArea), 0.5, accuracy: 0.02)
   }
 }
+
+func stubClient(_ key: String = "sk-test", model: String? = nil) -> DecisionsClient {
+  let config = URLSessionConfiguration.ephemeral
+  config.protocolClasses = [StubProtocol.self]
+  return DecisionsClient(key: key, model: model, session: URLSession(configuration: config))
+}
+
+/// RGB (0-255) of the pixel at top-left coordinates (x, y).
+func pixel(_ image: CGImage, _ x: Int, _ y: Int) -> [Int] {
+  let ctx = CGContext(data: nil, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: 0,
+                      space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+  ctx.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+  let p = ctx.data!.bindMemory(to: UInt8.self, capacity: ctx.bytesPerRow * image.height)
+  let o = y * ctx.bytesPerRow + x * 4
+  return [Int(p[o]), Int(p[o + 1]), Int(p[o + 2])]
+}
+
+final class BoxQuestionTests: XCTestCase {
+  func testBoxQuestionOnOpenRouterAndModelOverride() {
+    let c = DecisionsClient(key: "sk-or-v1-abc", model: Route.boxModel)
+    XCTAssertEqual(c.model, "typesafe/jev-1.14")
+    let body = Decisions.body(text: "hi", imageDataURL: "data:image/jpeg;base64,AAA", questions: [.box(name: "where", instructions: "the ad")],
+                              model: c.model, route: .openrouter)
+    XCTAssertEqual(body["model"] as? String, "typesafe/jev-1.14")
+    let qs = body["questions"] as! [String: [String: Any]]
+    XCTAssertEqual(qs["where"]?["type"] as? String, "box")
+    XCTAssertNil(qs["where"]?["criteria"])
+  }
+
+  func testParsesBoxAnswersAsUnitRects() throws {
+    // The shape in OpenRouter's Jev guide (2026-10-18).
+    let json = #"{"answers":{"where":{"type":"box","box":{"top":0.49,"bottom":0.89,"left":0.58,"right":0.96},"confidence":0.93},"present":{"type":"noul","noul":0.8},"bad":{"type":"box","box":{"top":0.5,"bottom":0.4,"left":0.1,"right":0.2}}}}"#
+    let a = try Decisions.parse(Data(json.utf8))
+    let b = try XCTUnwrap(a["where"]?.box)
+    XCTAssertEqual(b.minX, 0.58, accuracy: 1e-9)
+    XCTAssertEqual(b.maxX, 0.96, accuracy: 1e-9)
+    XCTAssertEqual(b.minY, 0.49, accuracy: 1e-9)
+    XCTAssertEqual(b.maxY, 0.89, accuracy: 1e-9)
+    XCTAssertEqual(a["where"]?.confidence, 0.93)
+    XCTAssertEqual(a["where"]?.name, "where")
+    XCTAssertEqual(a["present"]?.probability, 0.8)
+    XCTAssertNil(a["bad"])                                   // bottom above top: no box
+  }
+}
+
+final class PaintTests: XCTestCase {
+  /// White 100x100 with black squares at top-left (10,10,10,10) and (40,40,20,20).
+  func squares() -> CGImage {
+    let ctx = CGContext(data: nil, width: 100, height: 100, bitsPerComponent: 8, bytesPerRow: 0,
+                        space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    ctx.setFillColor(CGColor(gray: 1, alpha: 1))
+    ctx.fill(CGRect(x: 0, y: 0, width: 100, height: 100))
+    ctx.setFillColor(CGColor(gray: 0, alpha: 1))
+    ctx.fill(CGRect(x: 10, y: 80, width: 10, height: 10)) // top-left (10, 10)
+    ctx.fill(CGRect(x: 40, y: 40, width: 20, height: 20))
+    return ctx.makeImage()!
+  }
+
+  func testPaintOutUsesTheSurroundingColourAndLeavesTheRest() {
+    let img = squares()
+    XCTAssertEqual(pixel(img, 50, 50), [0, 0, 0])
+    let out = Imaging.paintOut(img, rects: [CGRect(x: 40, y: 40, width: 20, height: 20)])!
+    XCTAssertEqual(pixel(out, 50, 50), [255, 255, 255])
+    XCTAssertEqual(pixel(out, 15, 15), [0, 0, 0])
+    XCTAssertEqual(pixel(out, 70, 70), [255, 255, 255])
+  }
+
+  func testFitForJevScalesAndPads() {
+    let long = Imaging.fitForJev(TestImages.stripes(width: 2000, height: 100, period: 10))!
+    XCTAssertEqual(long.image.width, 1568)
+    XCTAssertEqual(long.image.height, 280)                  // 78 px of picture, padded
+    XCTAssertEqual(long.scale, 0.784, accuracy: 1e-6)
+    let small = Imaging.fitForJev(TestImages.stripes(width: 100, height: 100, period: 10))!
+    XCTAssertEqual([small.image.width, small.image.height], [280, 280])
+    let ok = Imaging.fitForJev(TestImages.stripes(width: 1000, height: 500, period: 10))!
+    XCTAssertEqual([ok.image.width, ok.image.height], [1000, 500])
+    XCTAssertEqual(ok.scale, 1)
+  }
+}
+
+final class VerifyTests: XCTestCase {
+  let ads = [Bubbles.common[0]]
+  let shape = [CGRect(x: 50, y: 50, width: 100, height: 60)]
+  let img = TestImages.stripes(width: 400, height: 200, period: 10)
+
+  func answers(pred: Double, keep: Double) -> [String: Any] {
+    ["answers": [["type": "predicate", "name": "ads", "probability": pred],
+                 ["type": "choice", "name": "kind", "choice": keep > 0.5 ? "keep" : "ads",
+                  "probabilities": [["value": "keep", "probability": keep], ["value": "ads", "probability": 1 - keep]]]]]
+  }
+
+  func testDroppedOnlyWhenBothQuestionsSayNo() async {
+    StubProtocol.seen = []
+    StubProtocol.handler = { _ in self.answers(pred: 0.1, keep: 0.95) }
+    var v = await Verify.rects(shape, image: img, matched: ads, client: stubClient())
+    XCTAssertEqual(v.dropped, shape)
+    XCTAssertEqual(v.requests, 1)
+    let qs = (StubProtocol.seen[0]["questions"] as! [[String: Any]]).map { $0["name"] as! String }
+    XCTAssertEqual(qs, ["ads", "kind"])                       // both wordings in one request
+    StubProtocol.handler = { _ in self.answers(pred: 0.2, keep: 0.3) } // the choice still says ad
+    v = await Verify.rects(shape, image: img, matched: ads, client: stubClient())
+    XCTAssertEqual(v.kept, shape)
+    XCTAssertEqual(v.scores[0] ?? 0, 0.7, accuracy: 1e-9)
+  }
+
+  func testFailedCheckKeepsTheShape() async {
+    StubProtocol.handler = { _ in ["error": "nope"] }
+    let v = await Verify.rects(shape, image: img, matched: ads, client: stubClient())
+    XCTAssertEqual(v.kept, shape)
+    XCTAssertEqual(v.errors.count, 1)
+  }
+}
+
+final class ReaskTests: XCTestCase {
+  /// First look: only A1 is an ad. With the found ones painted out (the note in the text), C1 is too.
+  func handler(_ body: [String: Any]) -> [String: Any] {
+    let text = ((body["input"] as! [[String: Any]])[0]["content"] as! [[String: Any]])[0]["text"] as! String
+    let painted = text.contains("Plain patches")
+    let names = (body["questions"] as! [[String: Any]]).map { $0["name"] as! String }
+    return ["answers": names.map { n in
+      let ad = n == "A1" || (painted && n == "C1")
+      return ["type": "choice", "name": n, "choice": ad ? "ads" : "keep",
+              "probabilities": [["value": "keep", "probability": ad ? 0.1 : 0.9], ["value": "ads", "probability": ad ? 0.9 : 0.1]]]
+    }]
+  }
+
+  func testCleanCellsAreAskedAgainWithFindsPaintedOut() async {
+    StubProtocol.seen = []
+    StubProtocol.handler = handler
+    let img = TestImages.stripes(width: 800, height: 200, period: 10)
+    let spec = GridSpec(cols: 4, rows: 1)
+    let judge = Judge(client: stubClient(), bubbles: [Bubbles.common[0]], mode: .grid, reask: true)
+    let r = await judge.judge(img, spec: spec, cells: [0, 1, 2, 3])
+    XCTAssertEqual(r.requests, 2)
+    XCTAssertEqual(r.reasked, [1, 2, 3])
+    XCTAssertEqual(r.foundOnReask, [2])
+    XCTAssertEqual(Set(r.verdicts.filter(\.value.hide).keys), [0, 2])
+    let again = (StubProtocol.seen[1]["questions"] as! [[String: Any]]).map { $0["name"] as! String }
+    XCTAssertEqual(again, ["B1", "C1", "D1"])
+  }
+
+  func testNoReaskWithoutFindsOrWhenOff() async {
+    StubProtocol.seen = []
+    StubProtocol.handler = handler
+    let img = TestImages.stripes(width: 800, height: 200, period: 10)
+    let spec = GridSpec(cols: 4, rows: 1)
+    let off = await Judge(client: stubClient(), bubbles: [Bubbles.common[0]], mode: .grid).judge(img, spec: spec, cells: [0, 1, 2, 3])
+    XCTAssertEqual(off.requests, 1)
+    XCTAssertEqual(Set(off.verdicts.filter(\.value.hide).keys), [0])
+    // Nothing flagged and nothing masked: nothing to paint, so no second look.
+    let none = await Judge(client: stubClient(), bubbles: [Bubbles.common[0]], mode: .grid, reask: true).judge(img, spec: spec, cells: [1, 3])
+    XCTAssertEqual(none.requests, 1)
+    // A cell already masked on screen is painted out even when this pass found nothing.
+    let masked = await Judge(client: stubClient(), bubbles: [Bubbles.common[0]], mode: .grid, reask: true)
+      .judge(img, spec: spec, cells: [1, 2, 3], masked: [0])
+    XCTAssertEqual(masked.foundOnReask, [2])
+  }
+}
+
+final class LocateTests: XCTestCase {
+  // 800x400 cut 4x2 (200 px cells). Block B1:C1 plus half a cell is x 100..700, y 0..300:
+  // 600x300, inside Jev's limits, so the box fractions are of that crop.
+  let spec = GridSpec(cols: 4, rows: 2)
+  let block = CellBlock(col0: 1, row0: 0, col1: 2, row1: 0)
+  let img = TestImages.stripes(width: 800, height: 400, period: 10)
+
+  static func box(_ present: Double, _ l: Double, _ t: Double, _ r: Double, _ b: Double) -> [String: Any] {
+    ["answers": ["present": ["type": "noul", "noul": present],
+                 "where": ["type": "box", "box": ["left": l, "top": t, "right": r, "bottom": b], "confidence": 0.9]]]
+  }
+
+  func testFindsBoxesUntilNoneAreLeft() async {
+    StubProtocol.seen = []
+    StubProtocol.handler = { _ in
+      switch StubProtocol.seen.count {
+      case 1: return Self.box(0.9, 0.1, 0.1, 0.3, 0.5)
+      case 2: return Self.box(0.9, 0.6, 0.2, 0.9, 0.6)
+      default: return Self.box(0.2, 0.6, 0.2, 0.9, 0.6)    // "any left?" no
+      }
+    }
+    let r = await Locate.block(block, image: img, spec: spec, matched: [Bubbles.common[0]],
+                               client: stubClient("sk-or-test", model: Route.boxModel), checkClient: nil)
+    XCTAssertTrue(r.errors.isEmpty, "\(r.errors)")
+    XCTAssertEqual(r.requests, 3)
+    XCTAssertEqual(r.rects, [CGRect(x: 160, y: 30, width: 120, height: 120), CGRect(x: 460, y: 60, width: 180, height: 120)])
+    let first = StubProtocol.seen[0]
+    XCTAssertEqual(first["model"] as? String, "typesafe/jev-1.14")
+    let qs = first["questions"] as! [String: [String: Any]]
+    XCTAssertEqual(qs["where"]?["type"] as? String, "box")
+    XCTAssertEqual(qs["present"]?["type"] as? String, "noul")
+  }
+
+  func testRejectedBoxesSplitTheRegionWithinBudget() async {
+    StubProtocol.seen = []
+    StubProtocol.handler = { body in
+      if body["questions"] is [[String: Any]] {              // the check (OpenAI-shaped client): no
+        return ["answers": [["type": "predicate", "name": "ads", "probability": 0.1],
+                            ["type": "choice", "name": "kind", "choice": "keep", "probabilities": [["value": "keep", "probability": 0.95]]]]]
+      }
+      return Self.box(0.9, 0.1, 0.1, 0.3, 0.5)
+    }
+    let r = await Locate.block(block, image: img, spec: spec, matched: [Bubbles.common[0]],
+                               client: stubClient("sk-or-test", model: Route.boxModel), checkClient: stubClient(), maxRequests: 12)
+    XCTAssertTrue(r.rects.isEmpty)
+    XCTAssertGreaterThanOrEqual(r.rejected.count, 3)
+    XCTAssertLessThanOrEqual(r.requests, 12)
+    XCTAssertEqual(r.requests, StubProtocol.seen.count)
+  }
+
+  func testHalvesCutTheLongSide() {
+    XCTAssertEqual(Locate.halves(CGRect(x: 0, y: 0, width: 601, height: 300)),
+                   [CGRect(x: 0, y: 0, width: 300, height: 300), CGRect(x: 300, y: 0, width: 301, height: 300)])
+    XCTAssertEqual(Locate.halves(CGRect(x: 10, y: 0, width: 100, height: 300)),
+                   [CGRect(x: 10, y: 0, width: 100, height: 150), CGRect(x: 10, y: 150, width: 100, height: 150)])
+  }
+}
+
+final class FoundTests: XCTestCase {
+  func testAnAdCountsWhenHalfOfItIsMasked() {
+    let truth = [CGRect(x: 0, y: 0, width: 100, height: 100), CGRect(x: 200, y: 0, width: 100, height: 100)]
+    XCTAssertEqual(Coverage.found(masked: [CGRect(x: 0, y: 0, width: 60, height: 100)], truth: truth), 1)
+    XCTAssertEqual(Coverage.found(masked: [CGRect(x: 0, y: 0, width: 40, height: 100)], truth: truth), 0)
+  }
+}

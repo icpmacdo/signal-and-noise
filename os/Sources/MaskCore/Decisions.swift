@@ -10,15 +10,24 @@
 //    `questions` keyed by name, yes/no questions are `noul` answered with a `noul` value 0-1,
 //    choice criteria and probabilities are objects. (Images anywhere else in `state` are read as
 //    text, not seen.)
+//
+// The OpenRouter endpoint also serves TypeSafe's Jev (typesafe/jev-1.14), which adds `box`
+// questions: "where is X?" answered with one box as fractions of the image (top, bottom, left,
+// right from the top-left) and a confidence. Box never says "not found", so ask a noul about the
+// same thing in the request. Only Jev 1.14+ answers box questions; gpt-6-luna and Jev 1.13 reject
+// them. Images and Box are a TypeSafe preview (docs.typesafe.ai/primitives/box, 2026-10-18).
+import CoreGraphics
 import Foundation
 
 public enum Question: Sendable, Equatable {
   case predicate(name: String, instructions: String)
   case choice(name: String, instructions: String, choices: [(value: String, description: String)])
+  /// "Where is …?": one box. Jev 1.14+ only.
+  case box(name: String, instructions: String)
 
   public var name: String {
     switch self {
-    case .predicate(let name, _), .choice(let name, _, _): return name
+    case .predicate(let name, _), .choice(let name, _, _), .box(let name, _): return name
     }
   }
 
@@ -29,6 +38,8 @@ public enum Question: Sendable, Equatable {
     case .choice(let name, let instructions, let choices):
       return ["type": "choice", "name": name, "instructions": instructions,
               "choices": choices.map { ["value": $0.value, "description": $0.description] }]
+    case .box(let name, let instructions):
+      return ["type": "box", "name": name, "instructions": instructions]
     }
   }
 
@@ -44,6 +55,19 @@ public struct Answer: Sendable, Equatable {
   /// Choice: the picked value and the distribution over values.
   public let choice: String?
   public let probabilities: [String: Double]
+  /// Box: the box as fractions of the image (top-left origin), and how sure the model is.
+  public let box: CGRect?
+  public let confidence: Double?
+
+  public init(name: String, probability: Double? = nil, choice: String? = nil, probabilities: [String: Double] = [:],
+              box: CGRect? = nil, confidence: Double? = nil) {
+    self.name = name
+    self.probability = probability
+    self.choice = choice
+    self.probabilities = probabilities
+    self.box = box
+    self.confidence = confidence
+  }
 }
 
 public struct DecisionsError: Error, CustomStringConvertible {
@@ -61,6 +85,9 @@ public enum Route: String, Sendable {
   }
 
   public var model: String { self == .openai ? "gpt-6-luna" : "openai/gpt-6-luna-decisions" }
+
+  /// The model that answers box questions, OpenRouter route only.
+  public static let boxModel = "typesafe/jev-1.14"
 }
 
 public enum Decisions {
@@ -80,6 +107,8 @@ public enum Decisions {
         case .choice(let name, let instructions, let choices):
           qs[name] = ["type": "choice", "instructions": instructions,
                       "criteria": Dictionary(choices.map { ($0.value, $0.description) }, uniquingKeysWith: { a, _ in a })]
+        case .box(let name, let instructions):
+          qs[name] = ["type": "box", "instructions": instructions]
         }
       }
       return ["model": model, "state": state, "questions": qs]
@@ -109,11 +138,25 @@ public enum Decisions {
           if let v = entry["value"] as? String, let p = (entry["probability"] as? NSNumber)?.doubleValue { probs[v] = p }
         }
         out[name] = Answer(name: name, probability: nil, choice: a["choice"] as? String, probabilities: probs)
+      case "box":
+        if let b = box(a) { out[name] = b.with(name) }
       default:
         continue
       }
     }
     return out
+  }
+
+  /// A box answer's edges as a unit rect; nil when an edge is missing or the box is empty.
+  static func box(_ a: [String: Any]) -> Answer? {
+    guard let b = a["box"] as? [String: Any] else { return nil }
+    let e = ["top", "bottom", "left", "right"].compactMap { (b[$0] as? NSNumber)?.doubleValue }
+    guard e.count == 4 else { return nil }
+    let (top, bottom) = (max(0, min(1, e[0])), max(0, min(1, e[1])))
+    let (left, right) = (max(0, min(1, e[2])), max(0, min(1, e[3])))
+    guard right > left, bottom > top else { return nil }
+    return Answer(name: "", box: CGRect(x: left, y: top, width: right - left, height: bottom - top),
+                  confidence: (a["confidence"] as? NSNumber)?.doubleValue)
   }
 
   /// OpenRouter's shape: answers keyed by name; `noul` carries P(yes), choice probabilities are
@@ -128,11 +171,19 @@ public enum Decisions {
       case "choice":
         let probs = (a["probabilities"] as? [String: NSNumber])?.mapValues(\.doubleValue) ?? [:]
         out[name] = Answer(name: name, probability: nil, choice: a["choice"] as? String, probabilities: probs)
+      case "box":
+        if let b = box(a) { out[name] = b.with(name) }
       default:
         continue
       }
     }
     return out
+  }
+}
+
+extension Answer {
+  func with(_ name: String) -> Answer {
+    Answer(name: name, probability: probability, choice: choice, probabilities: probabilities, box: box, confidence: confidence)
   }
 }
 
@@ -144,13 +195,15 @@ public final class DecisionsClient: @unchecked Sendable {
   let session: URLSession
   let timeout: TimeInterval
 
-  /// The route (and with it the default URL and model name) follows the key unless given.
-  public init(key: String, url: URL? = nil, route: Route? = nil, session: URLSession = .shared, timeout: TimeInterval = 10) {
+  /// The route (and with it the default URL and model name) follows the key unless given. `model`
+  /// overrides the route's model, e.g. typesafe/jev-1.14 on OpenRouter for box questions.
+  public init(key: String, url: URL? = nil, route: Route? = nil, model: String? = nil, session: URLSession = .shared,
+              timeout: TimeInterval = 10) {
     let route = route ?? Route.forKey(key)
     self.key = key
     self.route = route
     self.url = url ?? route.url
-    self.model = route.model
+    self.model = model ?? route.model
     self.session = session
     self.timeout = timeout
   }
