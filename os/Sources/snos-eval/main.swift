@@ -45,7 +45,7 @@ if let g = option("--grid").last {
   guard let parsed = GridSpec(g) else { fail("bad --grid \(g), use e.g. 8x5") }
   spec = parsed
 }
-let picked = option("--bubbles").last.map { $0.split(separator: ",").map(String.init) } ?? ["ads", "memes"]
+let picked = option("--bubbles").last.map { $0 == "none" ? [] : $0.split(separator: ",").map(String.init) } ?? ["ads", "memes"] // "none": only --custom
 let customs = option("--custom")
 let threshold = option("--threshold").last.flatMap(Double.init) ?? 0.6
 let outOpt = option("--out").last
