@@ -18,15 +18,18 @@ struct Settings: Codable, Equatable {
   var grid: GridSpec? = GridSpec(cols: 8, rows: 5)
   /// Reshape masks with a zoomed second look (or SAM 3 on fal.ai when a fal key is set).
   var tighterShapes = true
-  /// From the Vision Jev thread (2026-10-16), measured on 8 labelled pages all on Jev (2026-10-18):
-  /// shapes from Jev boxes found 14 of 15 ads at 88% recall / 87% precision where the zoomed look
-  /// found 8 or 9 at 52% / 69%, for about the same requests, so boxes are on wherever the route
-  /// answers box questions (OpenRouter or TypeSafe; with an OpenAI key the zoomed look stays).
-  /// Checking each mask and asking again with finds painted out added requests without finding
-  /// more, so they stay off.
+  /// From the Vision Jev thread (2026-10-16), measured all on Jev (2026-10-18, README): on 23 shots
+  /// with 28 ads, shapes from Jev boxes found 17 at 63% recall / 69% precision where the zoomed look
+  /// found 11 at 41% / 59%, for about the same requests, so boxes are on wherever the route answers
+  /// box questions (OpenRouter or TypeSafe; with an OpenAI key the zoomed look stays). Asking again
+  /// with finds painted out found about 2 more (19 of 28) for a third more requests: on. Checking
+  /// each mask found the same ads for 40% more requests: off.
   var boxShapes = true
   var checkMasks = false
-  var askAgain = false
+  var askAgain = true
+  /// Bumped when a default changes, so settings saved before it get the new default once.
+  var version = Settings.currentVersion
+  static let currentVersion = 2
   /// Apps whose windows are never captured, and while one is in front nothing runs at all.
   var neverApps = [
     "com.1password.1password", "com.agilebits.onepassword7", "com.bitwarden.desktop",
@@ -52,6 +55,9 @@ struct Settings: Codable, Equatable {
     checkMasks = try c.decodeIfPresent(Bool.self, forKey: .checkMasks) ?? d.checkMasks
     askAgain = try c.decodeIfPresent(Bool.self, forKey: .askAgain) ?? d.askAgain
     neverApps = try c.decodeIfPresent([String].self, forKey: .neverApps) ?? d.neverApps
+    version = try c.decodeIfPresent(Int.self, forKey: .version) ?? 1
+    if version < 2 { boxShapes = d.boxShapes; askAgain = d.askAgain } // 2: boxes and asking again became defaults
+    version = Settings.currentVersion
   }
 
   static func load() -> Settings {
