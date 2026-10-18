@@ -16,8 +16,15 @@
 // right from the top-left) and a confidence. Box never says "not found", so ask a noul about the
 // same thing in the request. Only Jev 1.14+ answers box questions; gpt-6-luna and Jev 1.13 reject
 // them. Images and Box are a TypeSafe preview (docs.typesafe.ai/primitives/box, 2026-10-18).
+//
+// A third route goes to TypeSafe directly (POST api.typesafe.ai/v1/systemone, jev-1.14.0, a
+// TypeSafe key): `state` is a map whose `screen` names an entry in `assets` (base64, no data:
+// prefix), questions and answers are keyed as on OpenRouter, and every request with an image
+// carries `TypeSafe-Danger-Zone-Images: true`. Jev takes images 280 to 1568 px a side, so images
+// are refitted (scaled, padded white at the right or bottom) before they go.
 import CoreGraphics
 import Foundation
+import ImageIO
 
 public enum Question: Sendable, Equatable {
   case predicate(name: String, instructions: String)
@@ -75,18 +82,33 @@ public struct DecisionsError: Error, CustomStringConvertible {
 }
 
 public enum Route: String, Sendable {
-  case openai, openrouter
+  case openai, openrouter, typesafe
 
   /// OpenRouter keys start with sk-or-.
   public static func forKey(_ key: String) -> Route { key.hasPrefix("sk-or-") ? .openrouter : .openai }
 
   public var url: URL {
-    URL(string: self == .openai ? "https://api.openai.com/v1/decisions" : "https://openrouter.ai/api/alpha/decisions")!
+    switch self {
+    case .openai: return URL(string: "https://api.openai.com/v1/decisions")!
+    case .openrouter: return URL(string: "https://openrouter.ai/api/alpha/decisions")!
+    case .typesafe: return URL(string: "https://api.typesafe.ai/v1/systemone")!
+    }
   }
 
-  public var model: String { self == .openai ? "gpt-6-luna" : "openai/gpt-6-luna-decisions" }
+  /// Pinned, as the extension pins jev-1.13.0, so a model update can't silently move the masks.
+  public var model: String {
+    switch self {
+    case .openai: return "gpt-6-luna"
+    case .openrouter: return "openai/gpt-6-luna-decisions"
+    case .typesafe: return "jev-1.14.0"
+    }
+  }
 
-  /// The model that answers box questions, OpenRouter route only.
+  /// Routes that answer box questions, and the model that does on each.
+  public var answersBoxes: Bool { self != .openai }
+  public var boxModel: String { self == .typesafe ? model : Route.boxModel }
+
+  /// The model that answers box questions on OpenRouter.
   public static let boxModel = "typesafe/jev-1.14"
 }
 
@@ -96,26 +118,52 @@ public enum Decisions {
 
   public static func body(text: String, imageDataURL: String?, questions: [Question], model: String = model,
                           route: Route = .openai) -> [String: Any] {
+    if route == .typesafe {
+      var state: [String: Any] = ["about": text]
+      var assets: [String: Any] = [:]
+      if let imageDataURL, let comma = imageDataURL.firstIndex(of: ",") {
+        let format = imageDataURL.hasPrefix("data:image/png") ? "png" : "jpg"
+        assets["screen-image"] = ["type": "image", "format": format, "data_base64": String(imageDataURL[imageDataURL.index(after: comma)...])]
+        state["screen"] = "screen-image"
+      }
+      var body: [String: Any] = ["model": model, "state": state, "questions": keyedQuestions(questions)]
+      if !assets.isEmpty { body["assets"] = assets }
+      return body
+    }
     if route == .openrouter {
       var state: [[String: Any]] = [["type": "text", "text": text]]
       if let imageDataURL { state.append(["type": "image_url", "image_url": ["url": imageDataURL]]) }
-      var qs: [String: Any] = [:]
-      for q in questions {
-        switch q {
-        case .predicate(let name, let instructions):
-          qs[name] = ["type": "noul", "instructions": instructions]
-        case .choice(let name, let instructions, let choices):
-          qs[name] = ["type": "choice", "instructions": instructions,
-                      "criteria": Dictionary(choices.map { ($0.value, $0.description) }, uniquingKeysWith: { a, _ in a })]
-        case .box(let name, let instructions):
-          qs[name] = ["type": "box", "instructions": instructions]
-        }
-      }
-      return ["model": model, "state": state, "questions": qs]
+      return ["model": model, "state": state, "questions": keyedQuestions(questions)]
     }
     var content: [[String: Any]] = [["type": "input_text", "text": text]]
     if let imageDataURL { content.append(["type": "input_image", "image_url": imageDataURL]) }
     return ["model": model, "input": [["role": "user", "content": content]], "questions": questions.map(\.json)]
+  }
+
+  /// Questions keyed by name, yes/no as `noul` (OpenRouter and TypeSafe).
+  static func keyedQuestions(_ questions: [Question]) -> [String: Any] {
+    var qs: [String: Any] = [:]
+    for q in questions {
+      switch q {
+      case .predicate(let name, let instructions):
+        qs[name] = ["type": "noul", "instructions": instructions]
+      case .choice(let name, let instructions, let choices):
+        qs[name] = ["type": "choice", "instructions": instructions,
+                    "criteria": Dictionary(choices.map { ($0.value, $0.description) }, uniquingKeysWith: { a, _ in a })]
+      case .box(let name, let instructions):
+        qs[name] = ["type": "box", "instructions": instructions]
+      }
+    }
+    return qs
+  }
+
+  /// A data: URL image refitted to Jev's size limits, as a JPEG data: URL. Unreadable: unchanged.
+  public static func fittedForJev(_ dataURL: String) -> String {
+    guard let comma = dataURL.firstIndex(of: ","), let data = Data(base64Encoded: String(dataURL[dataURL.index(after: comma)...])),
+          let src = CGImageSourceCreateWithData(data as CFData, nil), let image = CGImageSourceCreateImageAtIndex(src, 0, nil) else { return dataURL }
+    guard image.width < 280 || image.height < 280 || image.width > 1568 || image.height > 1568 else { return dataURL }
+    guard let fitted = Imaging.fitForJev(image), let url = Imaging.jpegDataURL(fitted.image, quality: 0.85) else { return dataURL }
+    return url
   }
 
   /// Answers by question name. Refusals and unknown answer types are dropped: no answer, no mask.
@@ -213,7 +261,12 @@ public final class DecisionsClient: @unchecked Sendable {
     req.httpMethod = "POST"
     req.setValue("application/json", forHTTPHeaderField: "Content-Type")
     if !key.isEmpty { req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization") }
-    req.httpBody = try JSONSerialization.data(withJSONObject: Decisions.body(text: text, imageDataURL: imageDataURL, questions: questions, model: model, route: route))
+    var image = imageDataURL
+    if route == .typesafe, let url = imageDataURL {
+      req.setValue("true", forHTTPHeaderField: "TypeSafe-Danger-Zone-Images")
+      image = Decisions.fittedForJev(url)
+    }
+    req.httpBody = try JSONSerialization.data(withJSONObject: Decisions.body(text: text, imageDataURL: image, questions: questions, model: model, route: route))
     let (data, resp) = try await session.data(for: req)
     let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
     guard (200..<300).contains(status) else {

@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import ImageIO
 import XCTest
 @testable import MaskCore
 
@@ -613,5 +614,50 @@ final class FoundTests: XCTestCase {
     let truth = [CGRect(x: 0, y: 0, width: 100, height: 100), CGRect(x: 200, y: 0, width: 100, height: 100)]
     XCTAssertEqual(Coverage.found(masked: [CGRect(x: 0, y: 0, width: 60, height: 100)], truth: truth), 1)
     XCTAssertEqual(Coverage.found(masked: [CGRect(x: 0, y: 0, width: 40, height: 100)], truth: truth), 0)
+  }
+}
+
+final class TypeSafeRouteTests: XCTestCase {
+  func testBodyPutsTheImageInAssetsAndKeysQuestions() {
+    let c = DecisionsClient(key: "ts-test", route: .typesafe)
+    XCTAssertEqual(c.url.absoluteString, "https://api.typesafe.ai/v1/systemone")
+    XCTAssertEqual(c.model, "jev-1.14.0")
+    XCTAssertEqual(Route.typesafe.boxModel, "jev-1.14.0")
+    XCTAssertFalse(Route.openai.answersBoxes)
+    let body = Decisions.body(text: "hi", imageDataURL: "data:image/jpeg;base64,AAA",
+                              questions: [.predicate(name: "ads", instructions: "ad?"), .box(name: "where", instructions: "the ad")],
+                              model: c.model, route: .typesafe)
+    let state = body["state"] as! [String: String]
+    XCTAssertEqual(state["about"], "hi")
+    let ref = state["screen"]!
+    let asset = (body["assets"] as! [String: [String: String]])[ref]!
+    XCTAssertEqual(asset["data_base64"], "AAA")                 // no data: prefix
+    XCTAssertEqual(asset["format"], "jpg")
+    let qs = body["questions"] as! [String: [String: Any]]
+    XCTAssertEqual(qs["ads"]?["type"] as? String, "noul")
+    XCTAssertEqual(qs["where"]?["type"] as? String, "box")
+  }
+
+  func testRequestsCarryTheImagesHeaderAndFittedImages() async throws {
+    StubProtocol.seen = []
+    StubProtocol.handler = { _ in ["answers": ["ads": ["type": "noul", "noul": 0.7]]] }
+    final class HeaderSpy: URLProtocol, @unchecked Sendable {
+      nonisolated(unsafe) static var header: String?
+      override class func canInit(with request: URLRequest) -> Bool {
+        header = request.value(forHTTPHeaderField: "TypeSafe-Danger-Zone-Images"); return false
+      }
+    }
+    let config = URLSessionConfiguration.ephemeral
+    config.protocolClasses = [HeaderSpy.self, StubProtocol.self]
+    let client = DecisionsClient(key: "ts-test", route: .typesafe, session: URLSession(configuration: config))
+    let tiny = Imaging.jpegDataURL(TestImages.stripes(width: 100, height: 60, period: 10))!
+    let a = try await client.ask(text: "hi", imageDataURL: tiny, questions: [.predicate(name: "ads", instructions: "ad?")])
+    XCTAssertEqual(a["ads"]?.probability, 0.7)
+    XCTAssertEqual(HeaderSpy.header, "true")
+    let body = StubProtocol.seen[0]
+    let ref = (body["state"] as! [String: String])["screen"]!
+    let b64 = (body["assets"] as! [String: [String: String]])[ref]!["data_base64"]!
+    let img = CGImageSourceCreateImageAtIndex(CGImageSourceCreateWithData(Data(base64Encoded: b64)! as CFData, nil)!, 0, nil)!
+    XCTAssertGreaterThanOrEqual(min(img.width, img.height), 280)  // a 100x60 tile was refitted
   }
 }

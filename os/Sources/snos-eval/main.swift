@@ -14,7 +14,9 @@
 // that is labelled. Coarse cells and refined shapes are scored separately. "Ads found" counts
 // labelled ads with at least half their area masked.
 //
-// Keys: OPENAI_API_KEY or ~/.config/openai/api_key (an OpenRouter sk-or- key works too); for --sam, FAL_KEY or ~/.config/fal/api_key.
+// Keys: OPENAI_API_KEY or ~/.config/openai/api_key (an OpenRouter sk-or- key works too), or for Jev
+// direct (--route typesafe, the default when only this key is set) TYPESAFE_API_KEY or
+// ~/.config/typesafe/api_key; for --sam, FAL_KEY or ~/.config/fal/api_key.
 // SNOS_DECISIONS_URL / SNOS_SAM_URL point it at stubs instead.
 import Foundation
 import MaskCore
@@ -52,7 +54,11 @@ let reask = args.contains("--reask")
 let verify = args.contains("--verify")
 args.removeAll { ["--sam", "--reask", "--verify"].contains($0) }
 let refineMode = option("--refine").last ?? (useSAM ? "sam" : "fine") // none | fine | sam | box
-let boxModel = option("--box-model").last ?? Route.boxModel
+let boxModelOpt = option("--box-model").last
+let routeOpt = option("--route").last.map { r -> Route in
+  guard let route = Route(rawValue: r) else { fail("unknown --route \(r); use openai, openrouter or typesafe") }
+  return route
+}
 let sub = option("--sub").last.flatMap(Int.init) ?? 3
 let margin = option("--margin").last.flatMap(Double.init) ?? 0.5
 let fineThreshold = option("--fine-threshold").last.flatMap(Double.init) ?? 0.5
@@ -68,12 +74,23 @@ let bubbles = Bubbles.active(picked: picked, customs: customs)
 
 let env = ProcessInfo.processInfo.environment
 let url = env["SNOS_DECISIONS_URL"].flatMap(URL.init(string:))
-let keyFile = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/openai/api_key")
-let key = env["OPENAI_API_KEY"] ?? (try? String(contentsOf: keyFile, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-if key.isEmpty && url == nil { fail("no key: set OPENAI_API_KEY (an OpenAI or OpenRouter key) or write it to ~/.config/openai/api_key") }
-let client = DecisionsClient(key: key, url: url, timeout: 30)
-if refineMode == "box", client.route != .openrouter, url == nil { fail("--refine box needs an OpenRouter key (sk-or-…): Jev's box questions are served there") }
-let boxClient = DecisionsClient(key: key, url: url, model: boxModel, timeout: 30)
+func keyFrom(_ envName: String, _ file: String) -> String {
+  let path = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(file)
+  let k = env[envName] ?? (try? String(contentsOf: path, encoding: .utf8)) ?? ""
+  return k.trimmingCharacters(in: .whitespacesAndNewlines)
+}
+let openaiKey = keyFrom("OPENAI_API_KEY", ".config/openai/api_key")
+let typesafeKey = keyFrom("TYPESAFE_API_KEY", ".config/typesafe/api_key")
+let route = routeOpt ?? (openaiKey.isEmpty && !typesafeKey.isEmpty ? .typesafe : Route.forKey(openaiKey))
+let key = route == .typesafe ? typesafeKey : openaiKey
+if key.isEmpty && url == nil {
+  fail(route == .typesafe ? "no key: set TYPESAFE_API_KEY or write it to ~/.config/typesafe/api_key"
+                          : "no key: set OPENAI_API_KEY (an OpenAI or OpenRouter key) or write it to ~/.config/openai/api_key, or TYPESAFE_API_KEY for Jev")
+}
+let client = DecisionsClient(key: key, url: url, route: route, timeout: 30)
+if refineMode == "box", !route.answersBoxes { fail("--refine box needs Jev: an OpenRouter key (sk-or-…) or a TypeSafe key (--route typesafe)") }
+let boxClient = DecisionsClient(key: key, url: url, route: route, model: boxModelOpt ?? route.boxModel, timeout: 30)
+print("route \(route.rawValue), model \(client.model)\(refineMode == "box" ? ", boxes \(boxClient.model)" : "")")
 var sam: SAMClient?
 if useSAM {
   let samURL = env["SNOS_SAM_URL"].flatMap(URL.init(string:)) ?? SAMClient.defaultURL

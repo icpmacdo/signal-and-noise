@@ -18,10 +18,13 @@ struct Settings: Codable, Equatable {
   var grid: GridSpec? = GridSpec(cols: 8, rows: 5)
   /// Reshape masks with a zoomed second look (or SAM 3 on fal.ai when a fal key is set).
   var tighterShapes = true
-  /// The Vision Jev thread's ideas (2026-10-16), off until snos-eval shows they help on labelled
-  /// screens: shapes from Jev boxes (OpenRouter key; replaces the zoomed look and SAM), a check of
-  /// each mask before it shows, and asking the clean cells again with what was found painted out.
-  var boxShapes = false
+  /// From the Vision Jev thread (2026-10-16), measured on 8 labelled pages all on Jev (2026-10-18):
+  /// shapes from Jev boxes found 14 of 15 ads at 88% recall / 87% precision where the zoomed look
+  /// found 8 or 9 at 52% / 69%, for about the same requests, so boxes are on wherever the route
+  /// answers box questions (OpenRouter or TypeSafe; with an OpenAI key the zoomed look stays).
+  /// Checking each mask and asking again with finds painted out added requests without finding
+  /// more, so they stay off.
+  var boxShapes = true
   var checkMasks = false
   var askAgain = false
   /// Apps whose windows are never captured, and while one is in front nothing runs at all.
@@ -63,7 +66,8 @@ struct Settings: Codable, Equatable {
 }
 
 /// Keys live in the login keychain: `openai` (OPENAI_API_KEY or ~/.config/openai/api_key also
-/// work, handy from a terminal) and `fal` for SAM (FAL_KEY or ~/.config/fal/api_key).
+/// work, handy from a terminal), `typesafe` for Jev direct (TYPESAFE_API_KEY or
+/// ~/.config/typesafe/api_key) and `fal` for SAM (FAL_KEY or ~/.config/fal/api_key).
 enum KeyStore {
   static let service = "signal-and-noise-os"
 
@@ -74,7 +78,7 @@ enum KeyStore {
     if SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let d = out as? Data,
        let k = String(data: d, encoding: .utf8), !k.isEmpty { return k }
     q.removeValue(forKey: kSecReturnData as String)
-    let envName = account == "fal" ? "FAL_KEY" : "OPENAI_API_KEY"
+    let envName = ["fal": "FAL_KEY", "typesafe": "TYPESAFE_API_KEY"][account] ?? "OPENAI_API_KEY"
     if let env = ProcessInfo.processInfo.environment[envName], !env.isEmpty { return env }
     let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/\(account)/api_key")
     return (try? String(contentsOf: file, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

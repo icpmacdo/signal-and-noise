@@ -14,6 +14,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private var settings = Settings.load()
   private var key = KeyStore.load()
   private var falKey = KeyStore.load("fal")
+  /// Jev direct, used when there's no OpenAI or OpenRouter key.
+  private var tsKey = KeyStore.load("typesafe")
+  private var route: Route { key.isEmpty && !tsKey.isEmpty ? .typesafe : Route.forKey(key) }
   private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
   private var workers: [CGDirectDisplayID: DisplayWorker] = [:]
   private var content: SCShareableContent?
@@ -49,7 +52,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   private func pauseReason() -> String? {
     if !settings.enabled { return "Off" }
-    if key.isEmpty && decisionsURL == nil { return "Needs an OpenAI or OpenRouter key" }
+    if key.isEmpty && tsKey.isEmpty && decisionsURL == nil { return "Needs an OpenAI, OpenRouter or TypeSafe key" }
     if settings.bubbles.isEmpty { return "Pick something to hide" }
     if IsSecureEventInputEnabled() { return "Paused: password entry" }
     if let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier, settings.neverApps.contains(front) {
@@ -74,11 +77,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       }
       guard let content else { return }
       let excluded = content.applications.filter { $0.processID == getpid() || settings.neverApps.contains($0.bundleIdentifier) }
-      let client = DecisionsClient(key: key, url: decisionsURL)
+      let client = DecisionsClient(key: route == .typesafe ? tsKey : key, url: decisionsURL, route: route)
       let judge = Judge(client: client, bubbles: settings.bubbles, threshold: settings.threshold, mode: settings.mode, reask: settings.askAgain)
-      // Jev's box questions are served on OpenRouter, so boxes need an OpenRouter key.
-      let boxes = settings.tighterShapes && settings.boxShapes && (client.route == .openrouter || decisionsURL != nil)
-      let boxClient = boxes ? DecisionsClient(key: key, url: decisionsURL, model: Route.boxModel, timeout: 15) : nil
+      // Box questions are Jev's (OpenRouter or TypeSafe direct); OpenAI has none.
+      let boxes = settings.tighterShapes && settings.boxShapes && (route.answersBoxes || decisionsURL != nil)
+      let boxClient = boxes ? DecisionsClient(key: client.key, url: decisionsURL, route: route, model: route.boxModel, timeout: 15) : nil
       let useSAM = settings.tighterShapes && (!falKey.isEmpty || samURL != SAMClient.defaultURL)
       let sam = useSAM ? SAMClient(key: falKey, url: samURL) : nil
       for display in content.displays {
@@ -203,8 +206,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       ? "Tighter shapes (a zoomed second look)" : "Tighter shapes (SAM on fal.ai, $0.005 per mask)"
     item(finding, shapeTitle) { c in c.settings.tighterShapes.toggle(); c.changed(keepCache: true) }.state = settings.tighterShapes ? .on : .off
     finding.addItem(.separator())
-    let boxTitle = Route.forKey(key) == .openrouter || decisionsURL != nil
-      ? "Shapes from Jev boxes (Jev 1.14 preview on OpenRouter)" : "Shapes from Jev boxes (needs an OpenRouter key)"
+    let boxTitle = route.answersBoxes || decisionsURL != nil
+      ? "Shapes from Jev boxes (Jev 1.14 preview)" : "Shapes from Jev boxes (needs an OpenRouter or TypeSafe key)"
     item(finding, boxTitle) { c in c.settings.boxShapes.toggle(); c.changed(keepCache: true) }.state = settings.boxShapes ? .on : .off
     item(finding, "Check each mask before it shows (one more request each)") { c in c.settings.checkMasks.toggle(); c.changed(keepCache: true) }
       .state = settings.checkMasks ? .on : .off
@@ -216,6 +219,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     item(menu, key.isEmpty ? "Set OpenAI or OpenRouter key…" : "Change OpenAI or OpenRouter key…") { c in
       if let k = c.prompt("OpenAI or OpenRouter API key", info: "Stored in your login keychain. An OpenAI key (sk-…) calls api.openai.com/v1/decisions; an OpenRouter key (sk-or-…) calls openrouter.ai/api/alpha/decisions. Same model either way.", secure: true) {
         KeyStore.save(k); c.key = KeyStore.load(); c.changed(keepCache: true)
+      }
+    }
+    item(menu, tsKey.isEmpty ? "Set TypeSafe key (Jev)…" : "Change TypeSafe key (Jev)…") { c in
+      if let k = c.prompt("TypeSafe API key", info: "Stored in your login keychain. Used when no OpenAI or OpenRouter key is set: every question goes to Jev 1.14 at api.typesafe.ai/v1/systemone (images are a TypeSafe preview).", secure: true) {
+        KeyStore.save(k, account: "typesafe"); c.tsKey = KeyStore.load("typesafe"); c.changed(keepCache: true)
       }
     }
     item(menu, falKey.isEmpty ? "Set fal.ai key (for SAM)…" : "Change fal.ai key…") { c in

@@ -7,8 +7,9 @@ pixels only, so it runs in any app. Hover over a mask to peek through it; click 
 Judging uses OpenAI's [Decisions API](https://developers.openai.com/api/docs/guides/decisions)
 (`gpt-6-luna`, `POST /v1/decisions`). It's billed for input only ($0.10 per million tokens), so many
 questions about one picture cost about the same as one. Optionally, masks are reshaped with Meta's
-SAM 3, hosted on [fal.ai](https://fal.ai/models/fal-ai/sam-3/image) ($0.005 per call). No model
-runs on this Mac.
+SAM 3, hosted on [fal.ai](https://fal.ai/models/fal-ai/sam-3/image) ($0.005 per call). With a
+TypeSafe key instead, every question goes to TypeSafe's Jev 1.14 (`jev-1.14.0`,
+`POST api.typesafe.ai/v1/systemone`; images are a TypeSafe preview). No model runs on this Mac.
 
 ## Run it
 
@@ -25,7 +26,8 @@ open "build/Signal & Noise OS.app"
    `OPENAI_API_KEY` or `~/.config/openai/api_key` also work. An OpenRouter key (`sk-or-…`)
    reaches the same model at `openrouter.ai/api/alpha/decisions`
    (`openai/gpt-6-luna-decisions`), which takes a different request shape; the app picks the
-   route from the key.
+   route from the key. Or **Set TypeSafe key (Jev)…** (`TYPESAFE_API_KEY` or
+   `~/.config/typesafe/api_key` also work): used when no OpenAI or OpenRouter key is set.
 3. Menu → **Hide** → pick bubbles, or **Add your own…**. Ads are on by default.
 4. Optional: **Set fal.ai key (for SAM)…** for tighter mask shapes. `FAL_KEY` or
    `~/.config/fal/api_key` also work. Turn it off under Finding regions.
@@ -67,20 +69,21 @@ cells, requests, seconds, what was hidden and any errors.
   grid mask stays. Decisions still decides *whether* to hide; SAM only decides the shape. It runs
   once per new masked block, never per frame. Text-only bubbles (rage bait, crypto) have no noun
   phrase and keep grid masks.
-- **From the Vision Jev box thread (2026-10-16), off by default** (menu → Finding regions). Built
-  and tested against stubs; not yet run against real pages, so not yet worth turning on blind:
-  - **Shapes from Jev boxes** (OpenRouter key): TypeSafe's Jev 1.14 answers "where is the ad?"
-    with one box. Each new block is searched in a loop instead of the zoomed look: crop it at full
-    resolution, ask "is there an ad?" (noul) and "where?" (box) in one request, check the box, paint
-    it out and ask again until the answer is no. A box that fails its check splits the crop in half
-    and each half is searched (two levels at most, 12 requests per block at most). Uses
-    `typesafe/jev-1.14` on OpenRouter's Decisions endpoint, the same key and route as the coarse
-    pass; images and Box are a TypeSafe preview.
-  - **Check each mask**: before a shape shows, a crop around it with the shape outlined in red is
+- **From the Vision Jev box thread (2026-10-16)** (menu → Finding regions; see "Jev boxes on
+  real pages" below for the numbers):
+  - **Shapes from Jev boxes** (default with an OpenRouter or TypeSafe key): TypeSafe's Jev 1.14
+    answers "where is the ad?" with one box. Each new block is searched in a loop instead of the
+    zoomed look: crop it plus half a cell at full resolution, ask "is there an ad?" (noul) and
+    "where?" (box) in one request, paint the box out and ask again until the answer is no (4 boxes
+    at most). With checking on, a box that fails its check splits the crop in half and each half
+    is searched (two levels at most, 12 requests per block at most). On OpenRouter this uses
+    `typesafe/jev-1.14` with the same key; with a TypeSafe key it's `jev-1.14.0` direct. With an
+    OpenAI key there are no box questions and the zoomed look is used.
+  - **Check each mask** (off): before a shape shows, a crop around it with the shape outlined in red is
     asked "is what's inside mostly an ad?" two ways in one request (a yes/no and a choice), and the
     shape is dropped only if both say no. In the thread's beetle tests checking threw out bad boxes
     but also one real one, hence the two wordings. A failed check keeps the shape.
-  - **Ask again with found ads painted out**: once per pass, every flagged or masked cell is
+  - **Ask again with found ads painted out** (off): once per pass, every flagged or masked cell is
     painted with the colour around it and the cells that came back clean are asked again. This
     goes after what's left in the tuning below: ads the coarse pass never flagged.
 - **Masks**: adjacent masked cells merge into rectangles. Each one is a borderless panel above
@@ -125,10 +128,37 @@ share of masked area that is ad. The runs are noisy: the same settings vary by �
 What's left is mostly the coarse pass missing an ad entirely in some runs; the zoomed look can't
 mask what was never flagged.
 
+### Jev boxes on real pages (2026-10-18)
+
+Eight pages screenshotted at 1440×900 in headless Chrome (Allrecipes, Weather.com, Daily Mail,
+Speedtest, Fox News, Yahoo with 15 loaded ads between them; AccuWeather and Wikipedia with none),
+the ads labelled from each page's ad iframes and checked by eye, empty ad slots left out. Every
+question went to Jev 1.14 direct (TypeSafe key), Ads only, 8×5 grid, coarse threshold 0.5, three
+runs each. "Found" is labelled ads with at least half their area masked.
+
+| shapes | recall | precision | ads found (of 15) | requests per screen |
+|---|---|---|---|---|
+| zoomed look (the old default) | 52% (43–60) | 69% (64–71) | 8.5 (7–10) | 8 |
+| **Jev boxes (now the default)** | **88% (86–90)** | **87% (84–90)** | **13.7 (13–14)** | **9** |
+| Jev boxes + check each mask | 87% | 85% | 14.0 | 14 |
+| Jev boxes + check + ask again | 86% | 83% | 14.0 (13–15) | 18 |
+| zoomed look + check each mask | 42% | 78% | 6.3 | 22 |
+| zoomed look + ask again | 52% | 68% | 8.3 | 11 |
+| zoomed look + ask again + check | 48% | 79% | 8.3 | 25 |
+
+On Jev the coarse grid alone found 13–14 of 15 ads (about 78% recall, 57% precision); the zoomed
+look then lost about 5 of them, because Jev's answers about fine-grid cells land on logos,
+buttons and headlines. Boxes keep them, and since the search crop has a margin, boxes also cover
+parts of ads the coarse cells missed. Checking each mask raised precision on the zoomed look's
+scattered shapes but dropped real ads too (as in the beetle tests); on boxes it changed nothing
+for 50% more requests. Asking again found an extra ad now and then for twice the coarse requests.
+Box shapes spend about 0.3–0.4 s per block. Not measured: Jev boxes behind gpt-6-luna's coarse pass
+(an OpenRouter key), and the earlier WSJ/NYT set, which isn't on this Mac any more.
+
 ## Privacy
 
-Whatever is on screen goes to OpenAI as JPEG crops: tiles of your screen, or the whole screen in
-grid mode. With SAM on, crops around masked areas also go to fal.ai. That includes email, chats and documents. The pause rules above are the only filter.
+Whatever is on screen goes to OpenAI (or OpenRouter, or TypeSafe, by key) as JPEG crops: tiles of
+your screen, or the whole screen in grid mode. With SAM on, crops around masked areas also go to fal.ai. That includes email, chats and documents. The pause rules above are the only filter.
 OpenAI offers zero data retention for eligible accounts only.
 
 ## Eval: does it find the right regions?
@@ -139,8 +169,13 @@ swift run snos-eval ~/Desktop/shots --mode tiles --grid 12x8 --bubbles ads,viole
 swift run snos-eval ~/Desktop/shots --mode grid --threshold 0.5      # zoomed second look (default)
 swift run snos-eval ~/Desktop/shots --mode grid --refine sam         # SAM shapes instead (needs FAL_KEY)
 swift run snos-eval ~/Desktop/shots --mode grid --reask --verify     # ask again painted out; check each shape
-swift run snos-eval ~/Desktop/shots --mode grid --refine box --verify   # Jev box shapes (OpenRouter key)
+swift run snos-eval ~/Desktop/shots --mode grid --refine box         # Jev box shapes (OpenRouter or TypeSafe key)
+swift run snos-eval ~/Desktop/shots --mode grid --refine box --route typesafe   # every question to Jev direct
 ```
+
+The eval takes `OPENAI_API_KEY` or `~/.config/openai/api_key` (OpenAI or OpenRouter), or
+`TYPESAFE_API_KEY` or `~/.config/typesafe/api_key` for Jev direct, which it uses when it finds no
+other key.
 
 This runs the app's judging over a folder of screenshots and writes `report.html` and
 `results.json` (to `<folder>/snos-report/` unless `--out` says otherwise). The report shows each
@@ -157,7 +192,8 @@ eval at a stub server instead of OpenAI; `SNOS_SAM_URL` does the same for SAM.
 swift test      # MaskCore: request shape, answer parsing, grid and merging, hashing, image prep,
                 # the tracker (drop on change, cache, late answers, reveal), both judge modes
                 # against a stub, SAM box parsing and clipping, box answers, painting out, the
-                # check, asking again, the box search (found, rejected and split, budget)
+                # check, asking again, the box search (found, rejected and split, budget),
+                # the TypeSafe route (assets, images header, refitting to Jev's size limits)
 ```
 
 `Sources/MaskCore` is the pure, tested part. `Sources/SignalNoiseOS` is the app (AppKit,
@@ -165,7 +201,7 @@ ScreenCaptureKit). `Sources/snos-eval` is the eval command.
 
 ## Known gaps
 
-- Without SAM, masks are grid-shaped, so they're blocky, and an ad that straddles cells masks
+- With an OpenAI key (no box questions) and without SAM, masks are grid-shaped, so they're blocky, and an ad that straddles cells masks
   every cell it touches. Finer grids give tighter masks but mean more requests.
 - The verdict cache helps when the same content comes back in the same place (switching back to a
   window or tab). After a scroll, content rarely lines up with the grid the same way, so it's
@@ -175,6 +211,8 @@ ScreenCaptureKit). `Sources/snos-eval` is the eval command.
 - SAM shapes follow the grid's movement rules: they drop when the cells under them change, so a
   shape that spills past its block can briefly stay over content that scrolled away.
 - Decisions has been run for real (via OpenRouter); SAM has only been run against a stub.
-- Jev boxes, checking and asking again have only been run against stubs. The direct TypeSafe API
-  (`api.typesafe.ai/v1/systemone`, base64 `assets` and a `TypeSafe-Danger-Zone-Images` header) isn't
-  wired up; boxes go through OpenRouter only.
+- Jev boxes, checking and asking again have been run for real only on the TypeSafe route, on 8
+  pages. The OpenRouter route for them has only been run against a stub.
+- Box shapes spill past their ads a little (a box sometimes takes in the search bar above a
+  leaderboard), and one box per question means a block holding two ads needs two requests.
+- When both an OpenAI/OpenRouter key and a TypeSafe key are set, the OpenAI/OpenRouter key wins.
